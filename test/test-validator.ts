@@ -1,9 +1,8 @@
-import { RequestContext } from './model/RequestContext';
-import { Validator } from './model/Validator';
-import { AzureAd } from './validators/AzureAd';
-import { AzureB2c } from './validators/AzureB2c';
-import { Cognito } from './validators/Cognito';
-import { IValidator } from './validators/IValidator';
+import { RequestContext } from '../src/model/RequestContext';
+import { Validator } from '../src/model/Validator';
+import { AzureB2c } from '../src/validators/AzureB2c';
+// import { Cognito } from '../src/validators/Cognito';
+import { IValidator } from '../src/validators/IValidator';
 
 
 var val:Validator = {
