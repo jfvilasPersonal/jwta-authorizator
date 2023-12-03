@@ -22,7 +22,7 @@ Follow these simple steps to have your JWTA authorizator created and deployed to
 
   1. Create the YAML describig yout authorizator needs. Following you can find a very simple (and not too much useful) authorizator defintion YAML. This authorizatror runs as follows:
      1. All resources under the URI path "/public" can be accessed anonymously, the path is not protected in any way.
-     2. All resources under "/private" URI path require that the requestor presents a valid JWT token emited by an AWS Cognito service (the one specified under 'valdators' section).
+     2. All resources under "/private" URI path require that the requestor presents a valid JWT token emitted by an AWS Cognito service (the one specified under 'validators' section).
 
 ```yaml
   apiVersion: jfvilas.at.outlook.com/v1
