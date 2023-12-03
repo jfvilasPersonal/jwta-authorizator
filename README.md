@@ -24,31 +24,31 @@ Follow these simple steps to have your JWTA authorizator created and deployed to
      1. All resources under the URI path "/public" can be accessed anonymously, the path is not protected in any way.
      2. All resources under "/private" URI path require that the requestor presents a valid JWT token emited by an AWS Cognito service (the one specified under 'valdators' section).
 
-    ```yaml
-      apiVersion: jfvilas.at.outlook.com/v1
-      kind: JwtAuthorizator
-      metadata:
-        name: simple-authorizator
-        namespace: test
-      spec:
-        ingress:
-          name: sample-nginx-ingress
-          class: nginx
-        validators:
-          - cognito:
-              name: cognito-validator
-              region: eu-west-1
-              userpool: eu-west-1_abcdefg
-        ruleset:
-          # all resurces under /public can be accessed (access is unrestricted)
-          - uri: "/public/"
-            uritype: "prefix"
-            type: "unrestricted"
-          # all resurces under /private require a valid JWT token emitted by the cognito validator
-          - uri: "/private/"
-            uritype: "prefix"
-            type: "valid"
-    ```
+```yaml
+  apiVersion: jfvilas.at.outlook.com/v1
+  kind: JwtAuthorizator
+  metadata:
+    name: simple-authorizator
+    namespace: test
+  spec:
+    ingress:
+      name: sample-nginx-ingress
+      class: nginx
+    validators:
+      - cognito:
+          name: cognito-validator
+          region: eu-west-1
+          userpool: eu-west-1_abcdefg
+    ruleset:
+      # all resurces under /public can be accessed (access is unrestricted)
+      - uri: "/public/"
+        uritype: "prefix"
+        type: "unrestricted"
+      # all resurces under /private require a valid JWT token emitted by the cognito validator
+      - uri: "/private/"
+        uritype: "prefix"
+        type: "valid"
+```
 
   2. Apply the YAML
         `kubectl apply -f your-application-authorizator.yaml`
