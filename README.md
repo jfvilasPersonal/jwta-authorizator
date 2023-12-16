@@ -11,13 +11,20 @@ The JWT Authorizator project is made up of several components:
 
 This repo contains everything you need to deploy a JWTA Authorizator.
 
-## JWTA authorizator operation
->Explain how JWTA authorizator works.
+## Oberkorn authorizator operation
+This is how an Oberkorn authorizator works:
 
-## JWTA authorizator architecture
->Small explanation of JWTA authorizator architecture.
+![Data Plane](/_media/architecture/dataplane.png)
 
-## JWTA authorizator creation
+The flow is as follows:
+  1. A user request a resource (typically an API call or a static web resource like 'index.html', an image, a CSS,...).
+  2. When the ingress receives the requests it routes the request to the JWT Authorizator.
+  3. The Authorizator examines the requested URI in order to find a rule that matches that URI.
+  4. If a matching rule is found, then the rule is evaluated.
+  5. If the evaluation is 'true' the access is granted. If the evaluation is false, normally, the authorizator continues searching for more rules that match the requested URI (this behaviour can be customized).
+  6. If the access is granted (at least a rule evaluates to 'true'), the ingress sends the request to the backend (typically a service inside the kubernetes cluster). If the response form the authorizator is 'false', a 4xx HTTP status code is sent back to the customer.
+
+## Oberkorn authorizator creation
 Follow these simple steps to have your JWTA authorizator created and deployed to your kubernetes cluster (please remember you must first install the JWTA Controller and the CRD as explained [here](https://github.com/jfvilasPersonal/jwta-controller)).
 
   1. Create the YAML describig yout authorizator needs. Following you can find a very simple (and not too much useful) authorizator defintion YAML. This authorizatror runs as follows:
@@ -54,3 +61,9 @@ Follow these simple steps to have your JWTA authorizator created and deployed to
         `kubectl apply -f your-application-authorizator.yaml`
        
 **That's it!**
+
+## Oberkorn architecture
+Oberkorn is build around two separate resources: **the controller** (in charge of the control plane) and **the authorizator** (repsonsible of the data plane). The architecture of the whole project is depicted below.
+
+![Oberkorn architecture](/_media/oberkorn-architecture.png)
+

@@ -11,10 +11,11 @@ class AzureB2c extends BasicValidator_1.BasicValidator {
         super(val);
         //+++if (val.schedule) cron.schedule(val.schedule, this.cacheKeys);
         var openIdUrl = `https://${val.tenant}.b2clogin.com/${val.tenant}.onmicrosoft.com/${val.userflow}/v2.0/.well-known/openid-configuration`;
-        axios_1.default.get(openIdUrl).then((response) => {
+        axios_1.default.get(openIdUrl).then(async (response) => {
             this.jwksUri = response.data.jwks_uri;
             console.log(`Creating AzureB2c validator ${this.name} with jwks: ${this.jwksUri}`);
-            this.cacheKeys();
+            //+++ retries
+            await this.cacheKeys();
         })
             .catch((err) => {
             console.log("ERR");

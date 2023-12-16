@@ -58,6 +58,7 @@ async function validateRule(rule:Rule, context:RequestContext) {
   log(4,"Validators list to use for rule");
   log(4,validatorsList);
   for (const validator of validatorsList.values()) {
+    //+++ if a 'reject' behaviour has been fired, we shouldnt continue with next validator
     log(5,">>> TESTING VALIDATOR "+validator.name);
     if (context.validationStatus) delete context.validationStatus;
     if (context.validationError) delete context.validationError;
@@ -94,10 +95,9 @@ async function validateRule(rule:Rule, context:RequestContext) {
         // claim rule, we must evaluate policies
         case "claim":
           log(5,"Test 'claim' ruletype");
-          //si sabemos que el token no es valido, no hay que verificar nada mas
+          // if we know the tokn is not valid we don't need to continue with other evlautions
           if (!context.validationStatus) {
             log(5,'token invalid');
-            //return false;
             break;
           }
 
@@ -111,14 +111,12 @@ async function validateRule(rule:Rule, context:RequestContext) {
             // present, the claim MUST exist (with any value)
             case 'present':
               if (tokenClaimValue!==undefined) return true;
-              //return false;
               break;
 
 
             // not present, the claim name must not exist
             case 'notpresent':
               if (tokenClaimValue===undefined) return true;
-              //return false;
               break;
 
 
@@ -139,7 +137,6 @@ async function validateRule(rule:Rule, context:RequestContext) {
                   if (tokenClaimValue===value) return true;
                 });
               }
-              //return false;
               break;
 
 
@@ -160,7 +157,6 @@ async function validateRule(rule:Rule, context:RequestContext) {
                   if (tokenClaimValue.includes(value)) return true;
                 });
               }
-              //return false;
               break;
 
 
@@ -184,7 +180,6 @@ async function validateRule(rule:Rule, context:RequestContext) {
                 }).length;
                 if (fulfill===rule.values.length) return true;
               }
-              //return false;
               break;
 
 
@@ -195,7 +190,6 @@ async function validateRule(rule:Rule, context:RequestContext) {
                 var numMatches = Array.from(tokenClaimValue.matchAll(regex)).length;
                 if (numMatches>0) return true;
               });
-              //return false;
               break;
 
 
@@ -206,14 +200,12 @@ async function validateRule(rule:Rule, context:RequestContext) {
                 return Array.from(tokenClaimValue.matchAll(regex)).length>0;
               }).length;
               if (fulfill===rule.values.length) return true;
-              //return false;
               break;
 
 
             // invalid policy
             default:
               log(0,"invalid policy: "+rule.policy);
-              //return false;
               break;
         
           }
@@ -227,7 +219,6 @@ async function validateRule(rule:Rule, context:RequestContext) {
             if (await validateRule(r,context)) return true;
           }
           break;
-          //return false;
 
 
         // and policy, all sub-rules must be true
@@ -247,7 +238,6 @@ async function validateRule(rule:Rule, context:RequestContext) {
         default:
           // invalid rule type
           log(0,'Invalid rule tpye: '+rule.type);
-          //return false;
           break;
       }
     }
@@ -261,9 +251,10 @@ async function validateRule(rule:Rule, context:RequestContext) {
 
 
 async function validateRequest (context:RequestContext) {
-  //search for 'exact' rule uri
+  // search for 'exact' rule uri
   log(2,"Search 'exact' uri: "+context.uri);
   for (const r of context.ruleset as Array<Rule>) {
+    //+++ if a 'reject' behaviour has been fired, we should return
     if (r.uritype==="exact" && r.uri===context.uri) {
       log(3,"Test "+context.uri+" exact")
       if (await validateRule(r,context)) return true;
@@ -273,6 +264,7 @@ async function validateRequest (context:RequestContext) {
   //search for 'prefix' rule uri
   log(2,"Search 'prefix' uri: "+context.uri);
   for (const r of context.ruleset as Array<Rule>) {
+    //+++ if a 'reject' behaviour has been fired, we should return
     if (r.uritype==="prefix" && context.uri.startsWith(r.uri)) {
       log(3,"Test "+context.uri+" prefix")
       if (await validateRule(r,context)) return true;
@@ -284,6 +276,7 @@ async function validateRequest (context:RequestContext) {
   log(2,"Search 'regex' uri: "+context.uri);
   // for-of is used beacouse fo async fuction sinside 'forEach' or 'some'
   for (const r of context.ruleset as Array<Rule>) {
+    //+++ if a 'reject' behaviour has been fired, we should return
     if (r.uritype==="regex") {
       log(3,"Test "+r.uri);
       var regex=new RegExp(r.uri,'g');
@@ -448,7 +441,7 @@ function listen() {
 
   app.get('/', (req, res) => {
     log(1,req.url);
-    res.status(200).send('*********************************************\n* JWT Authorizator running at ' + Date.now().toString()+" *\n**********************************************\n");
+    res.status(200).send('*********************************************\n* JWT Authorizator running at ' + Date.now().toString()+" *\n*********************************************\n");
   });
 
 
@@ -456,12 +449,12 @@ function listen() {
     log(0,'Configuring Prometheus endpoint');
     promRequestsMetric = new Counter ({
       name:'totalRequests',
-      help:'Total number of requests in 1 JWT Authorizator'
+      help:'Total number of requests in one JWT Authorizator'
     });
     
     promValidMetric = new Counter ({
       name:'totalValidRequests',
-      help:'Total number of requests in 1 JWT Authorizator that has been answered positively (status code 200)'
+      help:'Total number of requests in one JWT Authorizator that has been answered positively (status code 200)'
     });
   
     app.get('/metrics', async (req, res) => {
@@ -472,29 +465,34 @@ function listen() {
   }
 
 
-  app.post('/validate/*', async (req, res) => {
+  app.get('/validate/*', async (req, res) => {
     log(1,"***************************************************************************************************************************************************************");
     log(1,Date.now().toString() + " "+req.url);
     
-    var data = req.body;
-    log(2,"Body received");
-    log(2,data);
+    // var data = req.body;
+    // log(2,"Body received");
+    // log(2,data);
 
-    log(2,"Headers received");
+    log(2,'Headers received');
     log(2,req.headers);
+    log(2,'================');
 
-    log(2,"Authorization: "+req.headers["authorization"]);
+    // extarct original uri, it depends on the ingress provider
+    var originalUri = req.headers["x-original-uri"] as string;
+    if (!originalUri) originalUri = req.headers["x-forwarded-uri"] as string;
+    log(2, 'originalUri: '+originalUri);
+    log(2, 'Authorization: '+req.headers["authorization"]);
 
     if (req.url.startsWith("/validate/")) {
       var jwtaName:string = req.url.substring(10);
-      log(1,"jwtaName: "+jwtaName);
+      log(1,'jwtaName: '+jwtaName);
 
       var authValue:string=req.headers["authorization"] as string;
       if (authValue && authValue.startsWith("Bearer ")) authValue=authValue.substring(7);
 
       var rc:RequestContext={
         ruleset: env.jwtaRulesets.get(jwtaName) as Array<Rule>,
-        uri: req.headers["x-original-uri"] as string
+        uri: originalUri
       };
       if (authValue) rc.token=authValue;
       log(3,rc);
@@ -532,7 +530,7 @@ env.jwtaPrometheus = (process.env.JWTA_PROMETHEUS==='true');
 console.log('Log level: '+logLevel);
 
 
-// filtrar log messages
+// filter log messages
 redirLog();
 
 // read config
@@ -544,5 +542,5 @@ createAuthorizatorValidators('ja-jfvilas');
 // launch authorizator
 log(0,"JWTA1500 Control is being given to JWT Authorizator");
 
-//await testValidations();
+// launch listener
 listen();
