@@ -9,7 +9,7 @@ The JWT Authorizator project is made up of several components:
   - *Controller*. Creating CRD's is a good starting point, but for the CRD's to do something useful, you need to have a controller who can listen for CRD events (resource creation, resource modification and resource deletion). The JWT Authorizator controller is deployed to kubernetes as a Deployment.
   - *Authorizator*. The Authorizator is the component in charge of managing users requests and deciding, according to specs included in the CRD's, where to approve or deny access requests to web resources.
 
-This repo contains everything you need to deploy a JWTA Authorizator.
+This repo contains everything you need to deploy an Oberkorn authorizator.
 
 ## Oberkorn authorizator operation
 This is how an Oberkorn authorizator works:
@@ -25,7 +25,7 @@ The flow is as follows:
   6. If the access is granted (at least a rule evaluates to 'true'), the ingress sends the request to the backend (typically a service inside the kubernetes cluster). If the response form the authorizator is 'false', a 4xx HTTP status code is sent back to the customer.
 
 ## Oberkorn authorizator creation
-Follow these simple steps to have your JWTA authorizator created and deployed to your kubernetes cluster (please remember you must first install the JWTA Controller and the CRD as explained [here](https://github.com/jfvilasPersonal/jwta-controller)).
+Follow these simple steps to have your Oberkorn authorizator created and deployed to your kubernetes cluster (please remember you must first install the Oberkorn controller and the CRD as explained [here](https://github.com/jfvilasPersonal/jwta-controller)).
 
   1. Create the YAML describig yout authorizator needs. Following you can find a very simple (and not too much useful) authorizator defintion YAML. This authorizatror runs as follows:
      1. All resources under the URI path "/public" can be accessed anonymously, the path is not protected in any way.
