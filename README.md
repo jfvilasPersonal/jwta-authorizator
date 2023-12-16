@@ -14,7 +14,7 @@ This repo contains everything you need to deploy a JWTA Authorizator.
 ## Oberkorn authorizator operation
 This is how an Oberkorn authorizator works:
 
-![Data Plane](/_media/architecture/dataplane.png)
+![Data Plane](https://jfvilaspersonal.github.io/oberkorn/_media/architecture/dataplane.png)
 
 The flow is as follows:
   1. A user request a resource (typically an API call or a static web resource like 'index.html', an image, a CSS,...).
@@ -65,5 +65,5 @@ Follow these simple steps to have your JWTA authorizator created and deployed to
 ## Oberkorn architecture
 Oberkorn is build around two separate resources: **the controller** (in charge of the control plane) and **the authorizator** (repsonsible of the data plane). The architecture of the whole project is depicted below.
 
-![Oberkorn architecture](/_media/oberkorn-architecture.png)
+![Oberkorn architecture](https://jfvilaspersonal.github.io/oberkorn/_media/oberkorn-architecture.png)
 
