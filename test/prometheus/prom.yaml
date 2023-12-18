@@ -1,12 +1,12 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: jwt-authorizator-monitor
+  name: obk-authorizator-monitor
   namespace: monitoring
 spec:
   selector:
     matchLabels:
-      app: jwta-authorizator-ja-jfvilas-listener
+      app: obk-authorizator-ja-jfvilas-listener
       namespace: dev
   endpoints:
   - port: "3000"

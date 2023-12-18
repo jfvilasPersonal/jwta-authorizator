@@ -1,12 +1,12 @@
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
-  name: jwta-authorizator-ja-jfvilas
+  name: obk-authorizator-ja-jfvilas
   namespace: monitoring
 spec:
   selector:
     matchLabels:
-      app: jwta-authorizator-ja-jfvilas-listener
+      app: obk-authorizator-ja-jfvilas-listener
       namespace: dev
   podMetricsEndpoints:
   - port: "3000"
