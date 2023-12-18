@@ -19,21 +19,21 @@ var totalRequests = 0;
 var promRequestsMetric;
 var promValidMetric;
 var env = {
-    jwtaName: '',
-    jwtaNamespace: '',
-    jwtaPrometheus: false,
-    jwtaValidators: new Map(),
-    jwtaRulesets: new Map()
+    obkaName: '',
+    obkaNamespace: '',
+    obkaPrometheus: false,
+    obkaValidators: new Map(),
+    obkaRulesets: new Map()
 };
 async function validateRule(rule, context) {
     var _a, _b, _c, _d;
-    var validatorsArray = env.jwtaValidators.get(env.jwtaName);
+    var validatorsArray = env.obkaValidators.get(env.obkaName);
     var validatorsList = new Map();
     // si hay una lista especifica de vallidadores la preparamos, si no usamos todos los validadores definidos en el CRD
     if (rule.validators) {
         for (const v of rule.validators) {
-            if (((_a = env.jwtaValidators.get(env.jwtaName)) === null || _a === void 0 ? void 0 : _a.get(v)) !== undefined) {
-                validatorsList.set(v, (_b = env.jwtaValidators.get(env.jwtaName)) === null || _b === void 0 ? void 0 : _b.get(v));
+            if (((_a = env.obkaValidators.get(env.obkaName)) === null || _a === void 0 ? void 0 : _a.get(v)) !== undefined) {
+                validatorsList.set(v, (_b = env.obkaValidators.get(env.obkaName)) === null || _b === void 0 ? void 0 : _b.get(v));
             }
             else {
                 log(3, "Unknown validator: " + v);
@@ -59,7 +59,7 @@ async function validateRule(rule, context) {
         }
         log(5, "Test 'valid' ruletype with validator");
         log(5, validator);
-        var v = (_d = (_c = env.jwtaValidators.get('ja-jfvilas')) === null || _c === void 0 ? void 0 : _c.get(validator.name)) === null || _d === void 0 ? void 0 : _d.ivalidator;
+        var v = (_d = (_c = env.obkaValidators.get('ja-jfvilas')) === null || _c === void 0 ? void 0 : _c.get(validator.name)) === null || _d === void 0 ? void 0 : _d.ivalidator;
         if (v === undefined) {
             log(0, "IValidator not created (undefined): " + 'ja-jfvilas/' + validator.name);
             //return false;
@@ -298,64 +298,64 @@ function redirLog() {
 }
 function readConfig() {
     log(0, "Reading config");
-    env.jwtaName = process.env.JWTA_NAME;
-    env.jwtaNamespace = process.env.JWTA_NAMESPACE;
-    env.jwtaValidators = new Map();
-    env.jwtaRulesets = new Map();
+    env.obkaName = process.env.OBKA_NAME;
+    env.obkaNamespace = process.env.OBKA_NAMESPACE;
+    env.obkaValidators = new Map();
+    env.obkaRulesets = new Map();
     // para poder tener shared authorizator, cargamos los rulesets con su nombre
-    env.jwtaRulesets.set(env.jwtaName, JSON.parse(process.env.JWTA_RULESET));
+    env.obkaRulesets.set(env.obkaName, JSON.parse(process.env.OBKA_RULESET));
     // // cargar los validators
-    // env.jwtaValidators.set(env.jwtaName,new Map());
-    // var arrayVals = JSON.parse(process.env.JWTA_VALIDATORS as string) as Array<Validator>;
+    // env.obkaValidators.set(env.obkaName,new Map());
+    // var arrayVals = JSON.parse(process.env.OBKA_VALIDATORS as string) as Array<Validator>;
     // log(1,"***arrayVals***");
     // log(1,arrayVals);
     // arrayVals.forEach( v => {
-    //   env.jwtaValidators.get(env.jwtaName)?.set(v.name, v);
+    //   env.obkaValidators.get(env.obkaName)?.set(v.name, v);
     // })
-    // console.log(env.jwtaValidators);
+    // console.log(env.obkaValidators);
     // // cargar los balidators
     // log(1,"***arrayBals***");
-    // env.jwtaBalidators.set(env.jwtaName,new Map());
-    // var arrayBals = JSON.parse(process.env.JWTA_BALIDATORS as string) as Array<{}>;
+    // env.obkaBalidators.set(env.obkaName,new Map());
+    // var arrayBals = JSON.parse(process.env.OBKA_BALIDATORS as string) as Array<{}>;
     // log(1,arrayBals);
     // arrayBals.forEach(v  => {
     //   var type=Object.keys(v)[0];
     //   var val:Validator = (v as any)[type];
     //   val.type=type;
-    //   env.jwtaBalidators.get(env.jwtaName)?.set(val.name, val);
+    //   env.obkaBalidators.get(env.obkaName)?.set(val.name, val);
     // });
-    // console.log(env.jwtaBalidators);
+    // console.log(env.obkaBalidators);
     // cargar los balidators
     log(1, "***arrayVals***");
-    env.jwtaValidators.set(env.jwtaName, new Map());
-    var arrayVals = JSON.parse(process.env.JWTA_VALIDATORS);
+    env.obkaValidators.set(env.obkaName, new Map());
+    var arrayVals = JSON.parse(process.env.OBKA_VALIDATORS);
     log(1, arrayVals);
     arrayVals.forEach(v => {
         var _a;
         var type = Object.keys(v)[0];
         var val = v[type];
         val.type = type;
-        (_a = env.jwtaValidators.get(env.jwtaName)) === null || _a === void 0 ? void 0 : _a.set(val.name, val);
+        (_a = env.obkaValidators.get(env.obkaName)) === null || _a === void 0 ? void 0 : _a.set(val.name, val);
     });
-    console.log(env.jwtaValidators);
+    console.log(env.obkaValidators);
     log(0, "===================================================================================");
     log(0, "Environment parameters");
     log(0, env);
     log(0, "Validators");
-    log(0, env.jwtaValidators);
+    log(0, env.obkaValidators);
     log(0, "Rulesets");
-    log(0, env.jwtaRulesets);
+    log(0, env.obkaRulesets);
     log(0, "===================================================================================");
     log(0, "Config read");
 }
 function createAuthorizatorValidators(authorizator) {
     var _a, _b;
     log(0, "Load validators");
-    var validatorNames = (_a = env.jwtaValidators.get(authorizator)) === null || _a === void 0 ? void 0 : _a.keys();
+    var validatorNames = (_a = env.obkaValidators.get(authorizator)) === null || _a === void 0 ? void 0 : _a.keys();
     if (validatorNames) {
         for (const v of validatorNames) {
             log(1, "Loading validator " + v);
-            var val = (_b = env.jwtaValidators.get(authorizator)) === null || _b === void 0 ? void 0 : _b.get(v);
+            var val = (_b = env.obkaValidators.get(authorizator)) === null || _b === void 0 ? void 0 : _b.get(v);
             if (val) {
                 log(1, val);
                 var ival = getValidator(authorizator, v);
@@ -370,7 +370,7 @@ function createAuthorizatorValidators(authorizator) {
 }
 function getValidator(authorizator, name) {
     var _a;
-    var validator = (_a = env.jwtaValidators.get(authorizator)) === null || _a === void 0 ? void 0 : _a.get(name);
+    var validator = (_a = env.obkaValidators.get(authorizator)) === null || _a === void 0 ? void 0 : _a.get(name);
     log(1, 'Obtaining validator: ' + (validator === null || validator === void 0 ? void 0 : validator.type));
     switch (validator === null || validator === void 0 ? void 0 : validator.type) {
         case 'azure-b2c':
@@ -389,21 +389,21 @@ function getValidator(authorizator, name) {
 }
 function listen() {
     app.listen(port, () => {
-        log(0, `JWT Authorizator listening at port ${port}`);
+        log(0, `Oberkorn Authorizator listening at port ${port}`);
     });
     app.get('/', (req, res) => {
         log(1, req.url);
-        res.status(200).send('*********************************************\n* JWT Authorizator running at ' + Date.now().toString() + " *\n*********************************************\n");
+        res.status(200).send('**************************************************\n* Oberkorn Authorizator running at ' + Date.now().toString() + " *\n**************************************************\n");
     });
-    if (env.jwtaPrometheus) {
+    if (env.obkaPrometheus) {
         log(0, 'Configuring Prometheus endpoint');
         promRequestsMetric = new prom_client_1.Counter({
             name: 'totalRequests',
-            help: 'Total number of requests in one JWT Authorizator'
+            help: 'Total number of requests in one Oberkorn authorizator'
         });
         promValidMetric = new prom_client_1.Counter({
             name: 'totalValidRequests',
-            help: 'Total number of requests in one JWT Authorizator that has been answered positively (status code 200)'
+            help: 'Total number of requests in one Oberkorn authorizator that has been answered positively (status code 200)'
         });
         app.get('/metrics', async (req, res) => {
             log(1, req.url);
@@ -427,13 +427,13 @@ function listen() {
         log(2, 'originalUri: ' + originalUri);
         log(2, 'Authorization: ' + req.headers["authorization"]);
         if (req.url.startsWith("/validate/")) {
-            var jwtaName = req.url.substring(10);
-            log(1, 'jwtaName: ' + jwtaName);
+            var obkaName = req.url.substring(10);
+            log(1, 'obkaName: ' + obkaName);
             var authValue = req.headers["authorization"];
             if (authValue && authValue.startsWith("Bearer "))
                 authValue = authValue.substring(7);
             var rc = {
-                ruleset: env.jwtaRulesets.get(jwtaName),
+                ruleset: env.obkaRulesets.get(obkaName),
                 uri: originalUri
             };
             if (authValue)
@@ -445,11 +445,11 @@ function listen() {
             var end = new Date();
             log(2, "End time: " + end.toString());
             var millis = (end.getTime() - start.getTime());
-            if (env.jwtaPrometheus)
+            if (env.obkaPrometheus)
                 promRequestsMetric.inc();
             log(2, "Elpsed(ms): " + millis + "  ||  Count: " + (++totalRequests));
             if (isOk) {
-                if (env.jwtaPrometheus)
+                if (env.obkaPrometheus)
                     promValidMetric.inc();
                 res.status(200).send({ valid: true });
                 log(3, { valid: true });
@@ -464,10 +464,10 @@ function listen() {
     });
 }
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-console.log('JWT Authorizator is starting...');
-if (process.env.JWTA_LOG_LEVEL !== undefined)
-    logLevel = +process.env.JWTA_LOG_LEVEL;
-env.jwtaPrometheus = (process.env.JWTA_PROMETHEUS === 'true');
+console.log('Oberkorn authorizator is starting...');
+if (process.env.OBKA_LOG_LEVEL !== undefined)
+    logLevel = +process.env.OBKA_LOG_LEVEL;
+env.obkaPrometheus = (process.env.OBKA_PROMETHEUS === 'true');
 console.log('Log level: ' + logLevel);
 // filter log messages
 redirLog();
@@ -476,6 +476,6 @@ readConfig();
 // instantiate validators
 createAuthorizatorValidators('ja-jfvilas');
 // launch authorizator
-log(0, "JWTA1500 Control is being given to JWT Authorizator");
+log(0, "OBK1500 Control is being given to Oberkorn authorizator");
 // launch listener
 listen();
