@@ -1,5 +1,5 @@
 apiVersion: jfvilas.at.outlook.com/v1
-kind: JwtAuthorizator
+kind: ObkAuthorizator
 metadata:
   name: ja-jfvilas
   namespace: dev

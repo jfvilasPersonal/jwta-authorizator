@@ -33,7 +33,7 @@ Follow these simple steps to have your Oberkorn authorizator created and deploye
 
 ```yaml
   apiVersion: jfvilas.at.outlook.com/v1
-  kind: JwtAuthorizator
+  kind: ObkAuthorizator
   metadata:
     name: simple-authorizator
     namespace: test
