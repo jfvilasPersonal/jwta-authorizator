@@ -1,8 +1,8 @@
 # Welcome
-This repo contains all source artifacts needed to create the JWTA-Authorizator component of the [JWT Authorizator project](https://jfvilaspersonal.github.io/jwtauthorizator).
+This repo contains all source artifacts needed to create the Oberkotn authorizator component of the [Oberkorn Authorizator project](https://jfvilaspersonal.github.io/oberkorn).
 
-## JWT Authorizator project
-JWT Authorizator is a module created for having the flexibility to deploy JWT validation in front of any application project deployed on a Kubernetes cluster where the access is managed via Nginx Ingress Controller.
+## Oberkorn Authorizator project
+Oberkorn authorizator is a module created for having the flexibility to deploy JWT validation in front of any application project deployed on a Kubernetes cluster where the access is managed via Nginx Ingress Controller.
 
 The JWT Authorizator project is made up of several components:
   - *Custom Resource Definitions*. The way a JWT Authorizator can be deployed is based on kubernetes CRD's. You can see examples in the JWT Authorizator repositories explaning how to build and deploy an authorizator using such CRD's.
