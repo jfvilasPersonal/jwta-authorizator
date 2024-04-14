@@ -9,6 +9,7 @@ import { IValidator } from './validators/IValidator';
 
 import { AzureAd } from './validators/AzureAd';
 import { AzureB2c } from './validators/AzureB2c';
+import { KeyCloak } from './validators/KeyCloak';
 import { Cognito } from './validators/Cognito';
 import { NullValidator } from './validators/NullValidator';
 import { Counter, register } from 'prom-client';
@@ -427,9 +428,11 @@ function getValidator(authorizator:string,name:string) : IValidator{
     case 'cognito':
       return new Cognito(validator);
       //return new Cognito(validator.name, validator.region, validator.userpool, '0 * * * *');
+    case 'keycloak':
+      return new KeyCloak(validator);
     default:
-      log(0, 'Unknown validator type: '+validator?.type);
-      return new NullValidator(false);
+    log(0, 'Unknown validator type: '+validator?.type);
+    return new NullValidator(false);
   }
 }
 
