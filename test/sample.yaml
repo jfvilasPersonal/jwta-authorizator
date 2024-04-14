@@ -7,6 +7,7 @@ spec:
   config:
     replicas: 1
     prometheus: false
+    log-level: 9
   ingress:
     name: ingress-jfvilas
     # NGINX Ingress
@@ -23,26 +24,7 @@ spec:
         name: testkc
         realm: testrealm
         url: http://keycloak.dev.svc.cluster.local:8080
-    # - basic-auth-list:
-    #     name: admins
-    #     realm: demo
-    #     users:
-    #       - name: julio
-    #         password: pepito1
-    #       - name: lolo
-    #         password: pepito2
-    # - basic-auth-list:
-    #     name: admins
-    #     users:
-    #       - name: julio
-    #         password: pepito1
-    #       - name: lolo
-    #         password: pepito2
   ruleset:
-    # unrestricted
-    - uri: "/favicon.ico"
-      uritype: "exact"
-      type: "unrestricted"
     # unrestricted
     - uri: "/"
       uritype: "exact"
@@ -52,3 +34,15 @@ spec:
       uritype: "prefix"
       type: "valid"
       validators: [ testkc ]
+      # si el token no esta presente o no es valido
+      onfalse: reject
+      ontrue: continue
+    - uri: "/validkc/cont/"
+      uritype: "exact"
+      type: "valid"
+      validators: [ testkc ]
+    - uri: "/validkc/cortar/"
+      uritype: "exact"
+      type: "valid"
+      validators: [ testkc ]
+      ontrue: reject

@@ -9,8 +9,8 @@ import { IValidator } from './validators/IValidator';
 
 import { AzureAd } from './validators/AzureAd';
 import { AzureB2c } from './validators/AzureB2c';
-import { KeyCloak } from './validators/KeyCloak';
 import { Cognito } from './validators/Cognito';
+import { KeyCloak } from './validators/KeyCloak';
 import { NullValidator } from './validators/NullValidator';
 import { Counter, register } from 'prom-client';
 
@@ -36,12 +36,17 @@ var env:Environment = {
   obkaRulesets:new Map()
 };
 
+enum NextAction {
+  FALSE=0,
+  TRUE=1,
+  CONTINUE=2
+}
 
 async function validateRule(rule:Rule, context:RequestContext) {
   var validatorsArray=env.obkaValidators.get(env.obkaName) as Map<string, Validator>;
   var validatorsList:Map<string, Validator>=new Map();
 
-  // si hay una lista especifica de vallidadores la preparamos, si no usamos todos los validadores definidos en el CRD
+  // si hay una lista especifica de validadores la preparamos, si no usamos todos los validadores definidos en el YAML
   if (rule.validators) {
     for (const v of rule.validators) {
       if (env.obkaValidators.get(env.obkaName)?.get(v) as Validator!==undefined) {
@@ -84,7 +89,7 @@ async function validateRule(rule:Rule, context:RequestContext) {
 
       if (rule?.type==="valid") {
         log(5,"RESULT of 'valid' ruletype: "+context.validationStatus);
-        if (context.validationStatus) 
+        if (context.validationStatus)
           return true;
         else
           continue;
@@ -251,24 +256,59 @@ async function validateRule(rule:Rule, context:RequestContext) {
 }
 
 
-async function validateRequest (context:RequestContext) {
-  // search for 'exact' rule uri
-  log(2,"Search 'exact' uri: "+context.uri);
-  for (const r of context.ruleset as Array<Rule>) {
-    //+++ if a 'reject' behaviour has been fired, we should return
-    if (r.uritype==="exact" && r.uri===context.uri) {
-      log(3,"Test "+context.uri+" exact")
-      if (await validateRule(r,context)) return true;
+async function decideNext(r:Rule, context:RequestContext) {
+  if (await validateRule(r,context)) {
+    var ontrue = r.ontrue? r.ontrue.toLocaleLowerCase() : "accept";
+    switch (ontrue) {
+      case "accept":
+        log(2, "NextAction ONTRUE: TRUE");
+        return NextAction.TRUE;
+      case "reject":
+        log(2, "NextAction ONTRUE: FALSE");
+        return NextAction.FALSE;
+      case "continue":
+        log(2, "NextAction ONTRUE: CONTINUE");
+        return NextAction.CONTINUE;
+      default:
+        log (0,"Invalid ontrue: "+r.ontrue);
+        return NextAction.FALSE;
     }
   }
+  else {
+    var onfalse = r.onfalse? r.onfalse.toLocaleLowerCase() : "continue";
+    switch (onfalse) {
+      case "accept":
+        log(2, "NextAction ONFALSE: TRUE");
+        return NextAction.TRUE;
+      case "reject":
+        log(2, "NextAction ONFALSE: FALSE");
+        return NextAction.FALSE;
+      case "continue":
+        log(2, "NextAction ONFALSE: CONTINUE");
+        return NextAction.CONTINUE;
+      default:
+        log (0,"Invalid onfalse: "+r.onfalse);
+        return NextAction.FALSE;
+    }
+  }
+}
 
+async function validateRequest (context:RequestContext) {
   //search for 'prefix' rule uri
   log(2,"Search 'prefix' uri: "+context.uri);
   for (const r of context.ruleset as Array<Rule>) {
     //+++ if a 'reject' behaviour has been fired, we should return
     if (r.uritype==="prefix" && context.uri.startsWith(r.uri)) {
       log(3,"Test "+context.uri+" prefix")
-      if (await validateRule(r,context)) return true;
+      //if (await validateRule(r,context)) return true;
+      switch (await decideNext(r,context)) {
+        case NextAction.FALSE:
+          return false;
+        case NextAction.TRUE:
+          return true;
+        case NextAction.CONTINUE:
+          continue;
+      }
     }
   }
 
@@ -284,10 +324,39 @@ async function validateRequest (context:RequestContext) {
       log(3,"Test: "+context.uri + " = "+ r.uri);
       log(3,"Matches: "+Array.from(context.uri.matchAll(regex)).length);
       if (Array.from(context.uri.matchAll(regex)).length>0) {
-        if (await validateRule(r,context)) return true;
+        //if (await validateRule(r,context)) return true;
+        switch (await decideNext(r,context)) {
+          case NextAction.FALSE:
+            return false;
+          case NextAction.TRUE:
+            return true;
+          case NextAction.CONTINUE:
+            continue;
+        }
       }
     }
   }
+
+
+  // search for 'exact' rule uri
+  log(2,"Search 'exact' uri: "+context.uri);
+  for (const r of context.ruleset as Array<Rule>) {
+    //+++ if a 'reject' behaviour has been fired, we should return
+    if (r.uritype==="exact" && r.uri===context.uri) {
+      log(3,"Test "+context.uri+" exact")
+      //if (await validateRule(r,context)) return true;
+      switch (await decideNext(r,context)) {
+        case NextAction.FALSE:
+          return false;
+        case NextAction.TRUE:
+          return true;
+        case NextAction.CONTINUE:
+          continue;
+      }
+    }
+  }
+
+
   return false;
 }
 

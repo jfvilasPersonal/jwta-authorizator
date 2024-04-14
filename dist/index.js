@@ -7,8 +7,8 @@ const express_1 = __importDefault(require("express"));
 const body_parser_1 = __importDefault(require("body-parser"));
 const AzureAd_1 = require("./validators/AzureAd");
 const AzureB2c_1 = require("./validators/AzureB2c");
-const KeyCloak_1 = require("./validators/KeyCloak");
 const Cognito_1 = require("./validators/Cognito");
+const KeyCloak_1 = require("./validators/KeyCloak");
 const NullValidator_1 = require("./validators/NullValidator");
 const prom_client_1 = require("prom-client");
 const app = (0, express_1.default)();
@@ -26,11 +26,17 @@ var env = {
     obkaValidators: new Map(),
     obkaRulesets: new Map()
 };
+var NextAction;
+(function (NextAction) {
+    NextAction[NextAction["FALSE"] = 0] = "FALSE";
+    NextAction[NextAction["TRUE"] = 1] = "TRUE";
+    NextAction[NextAction["CONTINUE"] = 2] = "CONTINUE";
+})(NextAction || (NextAction = {}));
 async function validateRule(rule, context) {
     var _a, _b, _c, _d;
     var validatorsArray = env.obkaValidators.get(env.obkaName);
     var validatorsList = new Map();
-    // si hay una lista especifica de vallidadores la preparamos, si no usamos todos los validadores definidos en el CRD
+    // si hay una lista especifica de validadores la preparamos, si no usamos todos los validadores definidos en el YAML
     if (rule.validators) {
         for (const v of rule.validators) {
             if (((_a = env.obkaValidators.get(env.obkaName)) === null || _a === void 0 ? void 0 : _a.get(v)) !== undefined) {
@@ -225,25 +231,58 @@ async function validateRule(rule, context) {
     }
     return false;
 }
-async function validateRequest(context) {
-    // search for 'exact' rule uri
-    log(2, "Search 'exact' uri: " + context.uri);
-    for (const r of context.ruleset) {
-        //+++ if a 'reject' behaviour has been fired, we should return
-        if (r.uritype === "exact" && r.uri === context.uri) {
-            log(3, "Test " + context.uri + " exact");
-            if (await validateRule(r, context))
-                return true;
+async function decideNext(r, context) {
+    if (await validateRule(r, context)) {
+        var ontrue = r.ontrue ? r.ontrue.toLocaleLowerCase() : "accept";
+        switch (ontrue) {
+            case "accept":
+                log(2, "NextAction ONTRUE: TRUE");
+                return NextAction.TRUE;
+            case "reject":
+                log(2, "NextAction ONTRUE: FALSE");
+                return NextAction.FALSE;
+            case "continue":
+                log(2, "NextAction ONTRUE: CONTINUE");
+                return NextAction.CONTINUE;
+            default:
+                log(0, "Invalid ontrue: " + r.ontrue);
+                return NextAction.FALSE;
         }
     }
+    else {
+        var onfalse = r.onfalse ? r.onfalse.toLocaleLowerCase() : "continue";
+        switch (onfalse) {
+            case "accept":
+                log(2, "NextAction ONFALSE: TRUE");
+                return NextAction.TRUE;
+            case "reject":
+                log(2, "NextAction ONFALSE: FALSE");
+                return NextAction.FALSE;
+            case "continue":
+                log(2, "NextAction ONFALSE: CONTINUE");
+                return NextAction.CONTINUE;
+            default:
+                log(0, "Invalid onfalse: " + r.onfalse);
+                return NextAction.FALSE;
+        }
+    }
+}
+async function validateRequest(context) {
     //search for 'prefix' rule uri
     log(2, "Search 'prefix' uri: " + context.uri);
     for (const r of context.ruleset) {
         //+++ if a 'reject' behaviour has been fired, we should return
         if (r.uritype === "prefix" && context.uri.startsWith(r.uri)) {
             log(3, "Test " + context.uri + " prefix");
-            if (await validateRule(r, context))
-                return true;
+            //if (await validateRule(r,context)) return true;
+            switch (await decideNext(r, context)) {
+                case NextAction.FALSE:
+                    return false;
+                case NextAction.TRUE:
+                    return true;
+                case NextAction.CONTINUE:
+                    continue;
+            }
         }
     }
     // search for 'regex' rule uri
@@ -257,8 +296,32 @@ async function validateRequest(context) {
             log(3, "Test: " + context.uri + " = " + r.uri);
             log(3, "Matches: " + Array.from(context.uri.matchAll(regex)).length);
             if (Array.from(context.uri.matchAll(regex)).length > 0) {
-                if (await validateRule(r, context))
+                //if (await validateRule(r,context)) return true;
+                switch (await decideNext(r, context)) {
+                    case NextAction.FALSE:
+                        return false;
+                    case NextAction.TRUE:
+                        return true;
+                    case NextAction.CONTINUE:
+                        continue;
+                }
+            }
+        }
+    }
+    // search for 'exact' rule uri
+    log(2, "Search 'exact' uri: " + context.uri);
+    for (const r of context.ruleset) {
+        //+++ if a 'reject' behaviour has been fired, we should return
+        if (r.uritype === "exact" && r.uri === context.uri) {
+            log(3, "Test " + context.uri + " exact");
+            //if (await validateRule(r,context)) return true;
+            switch (await decideNext(r, context)) {
+                case NextAction.FALSE:
+                    return false;
+                case NextAction.TRUE:
                     return true;
+                case NextAction.CONTINUE:
+                    continue;
             }
         }
     }
