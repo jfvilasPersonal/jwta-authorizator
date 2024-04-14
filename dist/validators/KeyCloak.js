@@ -10,10 +10,12 @@ class KeyCloak extends BasicValidator_1.BasicValidator {
     constructor(val) {
         super(val);
         //+++if (val.schedule) cron.schedule(val.schedule, this.cacheKeys);
-        var openIdUrl = `https://${val.tenant}.b2clogin.com/${val.tenant}.onmicrosoft.com/${val.userflow}/v2.0/.well-known/openid-configuration`;
+        //var openIdUrl = `https://${val.tenant}.b2clogin.com/${val.tenant}.onmicrosoft.com/${val.userflow}/v2.0/.well-known/openid-configuration`;
+        //http://localhost:8080/realms/testrealm/.well-known/openid-configuration
+        var openIdUrl = `${val.url}/realms/${val.realm}/.well-known/openid-configuration`;
         axios_1.default.get(openIdUrl).then(async (response) => {
             this.jwksUri = response.data.jwks_uri;
-            console.log(`Creating AzureB2c validator ${this.name} with jwks: ${this.jwksUri}`);
+            console.log(`Creating KeyCloak validator ${this.name} with jwks: ${this.jwksUri}`);
             //+++ retries
             await this.cacheKeys();
         })

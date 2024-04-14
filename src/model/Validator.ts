@@ -7,14 +7,20 @@ export type Validator = {
     // Azure
     tenant?: string,
     userflow?: string,
+
     // Cognito
     region?: string,
     userpool?: string,
 
+    // Keycloak
+    realm?: string,
+    
     // generales
     aud?:string,
     iss?:string,
     verify:boolean,
+
+
 
     url?:string,
     ivalidator:IValidator|undefined
