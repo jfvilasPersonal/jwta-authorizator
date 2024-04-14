@@ -7,6 +7,7 @@ const express_1 = __importDefault(require("express"));
 const body_parser_1 = __importDefault(require("body-parser"));
 const AzureAd_1 = require("./validators/AzureAd");
 const AzureB2c_1 = require("./validators/AzureB2c");
+const KeyCloak_1 = require("./validators/KeyCloak");
 const Cognito_1 = require("./validators/Cognito");
 const NullValidator_1 = require("./validators/NullValidator");
 const prom_client_1 = require("prom-client");
@@ -382,6 +383,8 @@ function getValidator(authorizator, name) {
         case 'cognito':
             return new Cognito_1.Cognito(validator);
         //return new Cognito(validator.name, validator.region, validator.userpool, '0 * * * *');
+        case 'keycloak':
+            return new KeyCloak_1.KeyCloak(validator);
         default:
             log(0, 'Unknown validator type: ' + (validator === null || validator === void 0 ? void 0 : validator.type));
             return new NullValidator_1.NullValidator(false);
