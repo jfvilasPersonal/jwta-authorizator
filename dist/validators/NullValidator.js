@@ -7,7 +7,7 @@ class NullValidator {
         this.decodeAndValidateToken = async (context) => {
             context.validationStatus = this.returnValue;
         };
-        console.log('Instanciado NullValidator');
+        console.log('Instancing NullValidator');
         this.returnValue = returnValue;
     }
 }

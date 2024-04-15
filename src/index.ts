@@ -19,6 +19,7 @@ import { Counter, register } from 'prom-client';
 const app = express();
 app.use(bodyParser.json());
 const port = 3000;
+const VERSION:string = "0.1.0";
 var logLevel=9;
 var totalRequests=0;
 
@@ -42,7 +43,7 @@ enum NextAction {
   CONTINUE=2
 }
 
-async function validateRule(rule:Rule, context:RequestContext) {
+async function validateRule(rule:Rule, context:RequestContext):Promise<boolean> {
   var validatorsArray=env.obkaValidators.get(env.obkaName) as Map<string, Validator>;
   var validatorsList:Map<string, Validator>=new Map();
 
@@ -64,7 +65,6 @@ async function validateRule(rule:Rule, context:RequestContext) {
   log(4,"Validators list to use for rule");
   log(4,validatorsList);
   for (const validator of validatorsList.values()) {
-    //+++ if a 'reject' behaviour has been fired, we shouldnt continue with next validator
     log(5,">>> TESTING VALIDATOR "+validator.name);
     if (context.validationStatus) delete context.validationStatus;
     if (context.validationError) delete context.validationError;
@@ -77,10 +77,9 @@ async function validateRule(rule:Rule, context:RequestContext) {
 
     log(5,"Test 'valid' ruletype with validator");
     log(5,validator);
-    var v = env.obkaValidators.get('ja-jfvilas')?.get(validator.name)?.ivalidator;
+    var v = env.obkaValidators.get(env.obkaName)?.get(validator.name)?.ivalidator;
     if (v===undefined) {
-      log(0,"IValidator not created (undefined): "+'ja-jfvilas/'+validator.name);
-      //return false;
+      log(0,`IValidator does not exist (undefined): ${env.obkaName}/${validator.name}`);
       continue;
     }
 
@@ -256,7 +255,7 @@ async function validateRule(rule:Rule, context:RequestContext) {
 }
 
 
-async function decideNext(r:Rule, context:RequestContext) {
+async function decideNext(r:Rule, context:RequestContext):Promise<NextAction> {
   if (await validateRule(r,context)) {
     var ontrue = r.ontrue? r.ontrue.toLocaleLowerCase() : "accept";
     switch (ontrue) {
@@ -293,7 +292,7 @@ async function decideNext(r:Rule, context:RequestContext) {
   }
 }
 
-async function validateRequest (context:RequestContext) {
+async function validateRequest (context:RequestContext):Promise<boolean> {
   //search for 'prefix' rule uri
   log(2,"Search 'prefix' uri: "+context.uri);
   for (const r of context.ruleset as Array<Rule>) {
@@ -317,14 +316,12 @@ async function validateRequest (context:RequestContext) {
   log(2,"Search 'regex' uri: "+context.uri);
   // for-of is used beacouse fo async fuction sinside 'forEach' or 'some'
   for (const r of context.ruleset as Array<Rule>) {
-    //+++ if a 'reject' behaviour has been fired, we should return
     if (r.uritype==="regex") {
       log(3,"Test "+r.uri);
       var regex=new RegExp(r.uri,'g');
       log(3,"Test: "+context.uri + " = "+ r.uri);
       log(3,"Matches: "+Array.from(context.uri.matchAll(regex)).length);
       if (Array.from(context.uri.matchAll(regex)).length>0) {
-        //if (await validateRule(r,context)) return true;
         switch (await decideNext(r,context)) {
           case NextAction.FALSE:
             return false;
@@ -341,10 +338,8 @@ async function validateRequest (context:RequestContext) {
   // search for 'exact' rule uri
   log(2,"Search 'exact' uri: "+context.uri);
   for (const r of context.ruleset as Array<Rule>) {
-    //+++ if a 'reject' behaviour has been fired, we should return
     if (r.uritype==="exact" && r.uri===context.uri) {
       log(3,"Test "+context.uri+" exact")
-      //if (await validateRule(r,context)) return true;
       switch (await decideNext(r,context)) {
         case NextAction.FALSE:
           return false;
@@ -409,34 +404,9 @@ function readConfig() {
   // para poder tener shared authorizator, cargamos los rulesets con su nombre
   env.obkaRulesets.set(env.obkaName,JSON.parse(process.env.OBKA_RULESET as string) as Array<Rule>);
 
-  // // cargar los validators
-  // env.obkaValidators.set(env.obkaName,new Map());
-  // var arrayVals = JSON.parse(process.env.OBKA_VALIDATORS as string) as Array<Validator>;
-  // log(1,"***arrayVals***");
-  // log(1,arrayVals);
-  // arrayVals.forEach( v => {
-  //   env.obkaValidators.get(env.obkaName)?.set(v.name, v);
-  // })
-  // console.log(env.obkaValidators);
 
-
-  // // cargar los balidators
-  // log(1,"***arrayBals***");
-  // env.obkaBalidators.set(env.obkaName,new Map());
-  // var arrayBals = JSON.parse(process.env.OBKA_BALIDATORS as string) as Array<{}>;
-  // log(1,arrayBals);
-  // arrayBals.forEach(v  => {
-  //   var type=Object.keys(v)[0];
-  //   var val:Validator = (v as any)[type];
-  //   val.type=type;
-  //   env.obkaBalidators.get(env.obkaName)?.set(val.name, val);
-  // });
-  // console.log(env.obkaBalidators);
-
-
-
-  // cargar los balidators
-  log(1,"***arrayVals***");
+  // load validators
+  log(1,"Loading validators");
   env.obkaValidators.set(env.obkaName,new Map());
   var arrayVals = JSON.parse(process.env.OBKA_VALIDATORS as string) as Array<any>;
   log(1,arrayVals);
@@ -447,7 +417,6 @@ function readConfig() {
     env.obkaValidators.get(env.obkaName)?.set(val.name, val);
   });
   console.log(env.obkaValidators);
-
 
 
   log(0,"===================================================================================");
@@ -489,14 +458,11 @@ function getValidator(authorizator:string,name:string) : IValidator{
   log(1, 'Obtaining validator: '+validator?.type);
   switch (validator?.type) {
     case 'azure-b2c':
-      //return new AzureB2c(validator.name, validator.tenant, validator.userflow, '0 * * * *');
       return new AzureB2c(validator);
     case 'azure-ad':
       return new AzureAd(validator);
-      //return new AzureAd(validator.name, validator.tenant, '0 * * * *');
     case 'cognito':
       return new Cognito(validator);
-      //return new Cognito(validator.name, validator.region, validator.userpool, '0 * * * *');
     case 'keycloak':
       return new KeyCloak(validator);
     default:
@@ -541,10 +507,6 @@ function listen() {
     log(1,"***************************************************************************************************************************************************************");
     log(1,Date.now().toString() + " "+req.url);
     
-    // var data = req.body;
-    // log(2,"Body received");
-    // log(2,data);
-
     log(2,'Headers received');
     log(2,req.headers);
     log(2,'================');
@@ -596,11 +558,11 @@ function listen() {
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-console.log('Oberkorn authorizator is starting...');
+console.log('Oberkorn Authorizator is starting...');
+console.log(`Oberkorn Authorizator version is ${VERSION}`);
 if (process.env.OBKA_LOG_LEVEL!==undefined) logLevel= +process.env.OBKA_LOG_LEVEL;
 env.obkaPrometheus = (process.env.OBKA_PROMETHEUS==='true');
 console.log('Log level: '+logLevel);
-
 
 // filter log messages
 redirLog();
@@ -609,7 +571,7 @@ redirLog();
 readConfig();
 
 // instantiate validators
-createAuthorizatorValidators('ja-jfvilas');
+createAuthorizatorValidators(env.obkaName);
 
 // launch authorizator
 log(0,"OBK1500 Control is being given to Oberkorn authorizator");
