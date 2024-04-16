@@ -9,6 +9,7 @@ const AzureAd_1 = require("./validators/AzureAd");
 const AzureB2c_1 = require("./validators/AzureB2c");
 const Cognito_1 = require("./validators/Cognito");
 const KeyCloak_1 = require("./validators/KeyCloak");
+const BasicAuthList_1 = require("./validators/BasicAuthList");
 const NullValidator_1 = require("./validators/NullValidator");
 const prom_client_1 = require("prom-client");
 const app = (0, express_1.default)();
@@ -419,6 +420,8 @@ function getValidator(authorizator, name) {
             return new Cognito_1.Cognito(validator);
         case 'keycloak':
             return new KeyCloak_1.KeyCloak(validator);
+        case 'basic-auth-list':
+            return new BasicAuthList_1.BasicAuthList(validator);
         default:
             log(0, 'Unknown validator type: ' + (validator === null || validator === void 0 ? void 0 : validator.type));
             return new NullValidator_1.NullValidator(false);

@@ -15,6 +15,9 @@ export type Validator = {
     // Keycloak
     realm?: string,
     
+    // BasicAuthList
+    users?: [],
+    
     // generales
     aud?:string,
     iss?:string,

@@ -28,14 +28,12 @@ spec:
         userflow: B2C_1_password
         #aud: b8aba149-582f-4682-a2d0-6e4efca9126d
         iss: https://eulennopro.b2clogin.com/2c6d4dea-947a-4f96-a0ec-7a9e478633d8/v2.0/
-    # - basic-auth-list:
-    #     name: admins
-    #     realm: demo
-    #     users:
-    #       - name: julio
-    #         password: pepito1
-    #       - name: lolo
-    #         password: pepito2
+    - basic-auth-list:
+        name: admins
+        realm: demo
+        users:
+          - [ name: julio, password: pepito1 ]
+          - [ name: lolo, password: pepito2 ]
     # - basic-auth-list:
     #     name: admins
     #     users:

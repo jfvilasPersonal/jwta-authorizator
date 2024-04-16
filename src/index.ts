@@ -11,6 +11,7 @@ import { AzureAd } from './validators/AzureAd';
 import { AzureB2c } from './validators/AzureB2c';
 import { Cognito } from './validators/Cognito';
 import { KeyCloak } from './validators/KeyCloak';
+import { BasicAuthList } from './validators/BasicAuthList';
 import { NullValidator } from './validators/NullValidator';
 import { Counter, register } from 'prom-client';
 
@@ -465,6 +466,8 @@ function getValidator(authorizator:string,name:string) : IValidator{
       return new Cognito(validator);
     case 'keycloak':
       return new KeyCloak(validator);
+    case 'basic-auth-list':
+      return new BasicAuthList(validator);
     default:
     log(0, 'Unknown validator type: '+validator?.type);
     return new NullValidator(false);
