@@ -84,6 +84,8 @@ async function validateRule(rule:Rule, context:RequestContext):Promise<boolean> 
       continue;
     }
 
+    log(1, "Validtor type: "+ validator.type);
+
     if (context.token) {
       await v.decodeAndValidateToken(context);
 
@@ -248,7 +250,15 @@ async function validateRule(rule:Rule, context:RequestContext):Promise<boolean> 
       }
     }
     else {
-      log(5,"No token present, do not invoke validator");
+      if (validator.type==="basic-auth-list") {
+        log(1, "obtener respnse header");
+        await v.decodeAndValidateToken(context);
+        console.log(context.responseHeaders);
+        return false;
+      }
+      else {
+        log(5,"No token present, do not invoke validator");
+      }
     }
 
   }
@@ -529,7 +539,8 @@ function listen() {
 
       var rc:RequestContext={
         ruleset: env.obkaRulesets.get(obkaName) as Array<Rule>,
-        uri: originalUri
+        uri: originalUri,
+        responseHeaders: new Map()
       };
       if (authValue) rc.token=authValue;
       log(3,rc);
@@ -549,6 +560,13 @@ function listen() {
         return;
       }
       else {
+        if (rc.responseHeaders!==null) {
+          rc.responseHeaders?.forEach( (v:string, k:string) => {
+            console.log(k);
+            console.log(v);
+            res.set(k,v);
+          });
+        }
         res.status(401).send({ valid:false });
         log(3,{ valid:false });
         return;

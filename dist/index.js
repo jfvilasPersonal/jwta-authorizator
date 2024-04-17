@@ -72,6 +72,7 @@ async function validateRule(rule, context) {
             log(0, `IValidator does not exist (undefined): ${env.obkaName}/${validator.name}`);
             continue;
         }
+        log(1, "Validtor type: " + validator.type);
         if (context.token) {
             await v.decodeAndValidateToken(context);
             if ((rule === null || rule === void 0 ? void 0 : rule.type) === "valid") {
@@ -226,7 +227,15 @@ async function validateRule(rule, context) {
             }
         }
         else {
-            log(5, "No token present, do not invoke validator");
+            if (validator.type === "basic-auth-list") {
+                log(1, "obtener respnse header");
+                await v.decodeAndValidateToken(context);
+                console.log(context.responseHeaders);
+                return false;
+            }
+            else {
+                log(5, "No token present, do not invoke validator");
+            }
         }
     }
     return false;
@@ -452,6 +461,7 @@ function listen() {
         });
     }
     app.get('/validate/*', async (req, res) => {
+        var _a;
         log(1, "***************************************************************************************************************************************************************");
         log(1, Date.now().toString() + " " + req.url);
         log(2, 'Headers received');
@@ -471,7 +481,8 @@ function listen() {
                 authValue = authValue.substring(7);
             var rc = {
                 ruleset: env.obkaRulesets.get(obkaName),
-                uri: originalUri
+                uri: originalUri,
+                responseHeaders: new Map()
             };
             if (authValue)
                 rc.token = authValue;
@@ -493,6 +504,13 @@ function listen() {
                 return;
             }
             else {
+                if (rc.responseHeaders !== null) {
+                    (_a = rc.responseHeaders) === null || _a === void 0 ? void 0 : _a.forEach((v, k) => {
+                        console.log(k);
+                        console.log(v);
+                        res.set(k, v);
+                    });
+                }
                 res.status(401).send({ valid: false });
                 log(3, { valid: false });
                 return;

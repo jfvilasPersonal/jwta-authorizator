@@ -6,5 +6,6 @@ export type RequestContext = {
   decoded?:any,
   validationStatus?:boolean,
   validationError?:string,
-  ruleset:Array<Rule>
+  ruleset:Array<Rule>,
+  responseHeaders:Map<string,string>
 }
