@@ -7,22 +7,33 @@ import { Environment } from './model/Environment';
 
 import { IValidator } from './validators/IValidator';
 
-import { AzureAd } from './validators/AzureAd';
 import { AzureB2c } from './validators/AzureB2c';
+import { Google } from './validators/Google';
+import { AzureAd } from './validators/AzureAd';
 import { Cognito } from './validators/Cognito';
 import { KeyCloak } from './validators/KeyCloak';
 import { BasicAuthList } from './validators/BasicAuthList';
+import { Custom } from './validators/Custom';
 import { NullValidator } from './validators/NullValidator';
 import { Counter, register } from 'prom-client';
 
+import { VERSION } from './version';
+
+// we need access to kubernetes for reading configmaps
+import * as k8s from '@kubernetes/client-node';
+import { CoreV1Api } from '@kubernetes/client-node';
 
 
 const app = express();
 app.use(bodyParser.json());
 const port = 3000;
-const VERSION:string = "0.1.0";
 var logLevel=9;
 var totalRequests=0;
+
+// access to kubernetes cluster
+const kc = new k8s.KubeConfig();
+kc.loadFromDefault();
+const coreApi = kc.makeApiClient(CoreV1Api);
 
 
 //prometheus
@@ -84,7 +95,7 @@ async function validateRule(rule:Rule, context:RequestContext):Promise<boolean> 
       continue;
     }
 
-    log(1, "Validtor type: "+ validator.type);
+    log(1, "Validator type: "+ validator.type);
 
     if (context.token) {
       await v.decodeAndValidateToken(context);
@@ -250,8 +261,8 @@ async function validateRule(rule:Rule, context:RequestContext):Promise<boolean> 
       }
     }
     else {
-      if (validator.type==="basic-auth-list") {
-        log(1, "obtener respnse header");
+      if (validator.type==="basicAuthList") {
+        log(1, "obtener response header");
         await v.decodeAndValidateToken(context);
         console.log(context.responseHeaders);
         return false;
@@ -442,45 +453,64 @@ function readConfig() {
 }
 
 
-function createAuthorizatorValidators(authorizator:string) {
+async function createAuthorizatorValidators(authorizator:string) {
   log(0,"Load validators");
   var validatorNames = env.obkaValidators.get(authorizator)?.keys();
   if (validatorNames) {
-    for (const v of validatorNames) {
-      log(1,"Loading validator "+v);
-      var val = env.obkaValidators.get(authorizator)?.get(v);
+    for (const valName of validatorNames) {
+      log(1,"Loading validator "+valName);
+      var val = env.obkaValidators.get(authorizator)?.get(valName);
       if (val) {
         log(1,val);
-        var ival = getValidator(authorizator,v);
-        val.ivalidator = ival;
+        var ival = await getValidator(authorizator,valName);
+        val.ivalidator = (ival as IValidator);
         log(1,val);
       }
       else {
-        log(0, "Cannot load validator "+v);
+        log(0, "Cannot load validator "+valName);
       }
     }
   }
 }
 
 
-
-function getValidator(authorizator:string,name:string) : IValidator{
+async function getValidator(authorizator:string,name:string) {
   var validator=env.obkaValidators.get(authorizator)?.get(name);
-  log(1, 'Obtaining validator: '+validator?.type);
+  log(1, 'Obtaining validator: '+validator?.name+'/'+validator?.type);
   switch (validator?.type) {
-    case 'azure-b2c':
+    case 'azureB2c':
       return new AzureB2c(validator);
-    case 'azure-ad':
+    case 'google':
+      return new Google(validator);
+    case 'azureAd':
       return new AzureAd(validator);
     case 'cognito':
       return new Cognito(validator);
     case 'keycloak':
       return new KeyCloak(validator);
-    case 'basic-auth-list':
+    case 'basicAuthList':
       return new BasicAuthList(validator);
+    case 'basicAuthSecret':
+      //return new BasicAuthSecret(validator);
+    case 'custom':
+      console.log("cm:"+validator.configMap);
+      if (validator.configMap) {
+        var content = await coreApi.readNamespacedConfigMap(validator.configMap,env.obkaNamespace);
+        var data = content.body.data;
+        if (data!==undefined) {
+          var code=(data as any)[validator.key];
+          console.log(code);
+          validator.code=code;
+          return new Custom(validator);
+        }
+      }
+      else {
+        log(0,"No configMap provided");
+        return new NullValidator(false); 
+      }
     default:
-    log(0, 'Unknown validator type: '+validator?.type);
-    return new NullValidator(false);
+      log(0, 'Unknown validator type: '+validator?.type);
+      return new NullValidator(false);
   }
 }
 
@@ -592,10 +622,14 @@ redirLog();
 readConfig();
 
 // instantiate validators
-createAuthorizatorValidators(env.obkaName);
+createAuthorizatorValidators(env.obkaName).then ( () => {
+  // launch authorizator
+  log(0,"OBK1500 Control is being given to Oberkorn authorizator");
+  // launch listener
+  listen();
+}).
+catch( (err) =>{
+  log(0,"Cannot start Controller");
+  log(0,err);
+});
 
-// launch authorizator
-log(0,"OBK1500 Control is being given to Oberkorn authorizator");
-
-// launch listener
-listen();

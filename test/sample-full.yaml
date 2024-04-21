@@ -32,8 +32,8 @@ spec:
         name: admins
         realm: demo
         users:
-          - [ name: julio, password: pepito1 ]
-          - [ name: lolo, password: pepito2 ]
+          - { name: julio, password: pepito1 }
+          - { name: lolo, password: pepito2 }
     # - basic-auth-list:
     #     name: admins
     #     users:

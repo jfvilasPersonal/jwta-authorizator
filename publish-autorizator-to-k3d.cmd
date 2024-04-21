@@ -1,3 +1,4 @@
+call update-version
 call npm run build
 kubectl delete -f test\sample.yaml
 rem kubectl delete configmap obk-authorizator-ingress-jfvilas-configmap -n dev

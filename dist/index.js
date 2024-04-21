@@ -1,23 +1,55 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const body_parser_1 = __importDefault(require("body-parser"));
-const AzureAd_1 = require("./validators/AzureAd");
 const AzureB2c_1 = require("./validators/AzureB2c");
+const Google_1 = require("./validators/Google");
+const AzureAd_1 = require("./validators/AzureAd");
 const Cognito_1 = require("./validators/Cognito");
 const KeyCloak_1 = require("./validators/KeyCloak");
 const BasicAuthList_1 = require("./validators/BasicAuthList");
+const Custom_1 = require("./validators/Custom");
 const NullValidator_1 = require("./validators/NullValidator");
 const prom_client_1 = require("prom-client");
+const version_1 = require("./version");
+// we need access to kubernetes for reading configmaps
+const k8s = __importStar(require("@kubernetes/client-node"));
+const client_node_1 = require("@kubernetes/client-node");
 const app = (0, express_1.default)();
 app.use(body_parser_1.default.json());
 const port = 3000;
-const VERSION = "0.1.0";
 var logLevel = 9;
 var totalRequests = 0;
+// access to kubernetes cluster
+const kc = new k8s.KubeConfig();
+kc.loadFromDefault();
+const coreApi = kc.makeApiClient(client_node_1.CoreV1Api);
 //prometheus
 var promRequestsMetric;
 var promValidMetric;
@@ -72,7 +104,7 @@ async function validateRule(rule, context) {
             log(0, `IValidator does not exist (undefined): ${env.obkaName}/${validator.name}`);
             continue;
         }
-        log(1, "Validtor type: " + validator.type);
+        log(1, "Validator type: " + validator.type);
         if (context.token) {
             await v.decodeAndValidateToken(context);
             if ((rule === null || rule === void 0 ? void 0 : rule.type) === "valid") {
@@ -227,8 +259,8 @@ async function validateRule(rule, context) {
             }
         }
         else {
-            if (validator.type === "basic-auth-list") {
-                log(1, "obtener respnse header");
+            if (validator.type === "basicAuthList") {
+                log(1, "obtener response header");
                 await v.decodeAndValidateToken(context);
                 console.log(context.responseHeaders);
                 return false;
@@ -396,41 +428,61 @@ function readConfig() {
     log(0, "===================================================================================");
     log(0, "Config read");
 }
-function createAuthorizatorValidators(authorizator) {
+async function createAuthorizatorValidators(authorizator) {
     var _a, _b;
     log(0, "Load validators");
     var validatorNames = (_a = env.obkaValidators.get(authorizator)) === null || _a === void 0 ? void 0 : _a.keys();
     if (validatorNames) {
-        for (const v of validatorNames) {
-            log(1, "Loading validator " + v);
-            var val = (_b = env.obkaValidators.get(authorizator)) === null || _b === void 0 ? void 0 : _b.get(v);
+        for (const valName of validatorNames) {
+            log(1, "Loading validator " + valName);
+            var val = (_b = env.obkaValidators.get(authorizator)) === null || _b === void 0 ? void 0 : _b.get(valName);
             if (val) {
                 log(1, val);
-                var ival = getValidator(authorizator, v);
+                var ival = await getValidator(authorizator, valName);
                 val.ivalidator = ival;
                 log(1, val);
             }
             else {
-                log(0, "Cannot load validator " + v);
+                log(0, "Cannot load validator " + valName);
             }
         }
     }
 }
-function getValidator(authorizator, name) {
+async function getValidator(authorizator, name) {
     var _a;
     var validator = (_a = env.obkaValidators.get(authorizator)) === null || _a === void 0 ? void 0 : _a.get(name);
-    log(1, 'Obtaining validator: ' + (validator === null || validator === void 0 ? void 0 : validator.type));
+    log(1, 'Obtaining validator: ' + (validator === null || validator === void 0 ? void 0 : validator.name) + '/' + (validator === null || validator === void 0 ? void 0 : validator.type));
     switch (validator === null || validator === void 0 ? void 0 : validator.type) {
-        case 'azure-b2c':
+        case 'azureB2c':
             return new AzureB2c_1.AzureB2c(validator);
-        case 'azure-ad':
+        case 'google':
+            return new Google_1.Google(validator);
+        case 'azureAd':
             return new AzureAd_1.AzureAd(validator);
         case 'cognito':
             return new Cognito_1.Cognito(validator);
         case 'keycloak':
             return new KeyCloak_1.KeyCloak(validator);
-        case 'basic-auth-list':
+        case 'basicAuthList':
             return new BasicAuthList_1.BasicAuthList(validator);
+        case 'basicAuthSecret':
+        //return new BasicAuthSecret(validator);
+        case 'custom':
+            console.log("cm:" + validator.configMap);
+            if (validator.configMap) {
+                var content = await coreApi.readNamespacedConfigMap(validator.configMap, env.obkaNamespace);
+                var data = content.body.data;
+                if (data !== undefined) {
+                    var code = data[validator.key];
+                    console.log(code);
+                    validator.code = code;
+                    return new Custom_1.Custom(validator);
+                }
+            }
+            else {
+                log(0, "No configMap provided");
+                return new NullValidator_1.NullValidator(false);
+            }
         default:
             log(0, 'Unknown validator type: ' + (validator === null || validator === void 0 ? void 0 : validator.type));
             return new NullValidator_1.NullValidator(false);
@@ -520,7 +572,7 @@ function listen() {
 }
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 console.log('Oberkorn Authorizator is starting...');
-console.log(`Oberkorn Authorizator version is ${VERSION}`);
+console.log(`Oberkorn Authorizator version is ${version_1.VERSION}`);
 if (process.env.OBKA_LOG_LEVEL !== undefined)
     logLevel = +process.env.OBKA_LOG_LEVEL;
 env.obkaPrometheus = (process.env.OBKA_PROMETHEUS === 'true');
@@ -530,8 +582,13 @@ redirLog();
 // read config
 readConfig();
 // instantiate validators
-createAuthorizatorValidators(env.obkaName);
-// launch authorizator
-log(0, "OBK1500 Control is being given to Oberkorn authorizator");
-// launch listener
-listen();
+createAuthorizatorValidators(env.obkaName).then(() => {
+    // launch authorizator
+    log(0, "OBK1500 Control is being given to Oberkorn authorizator");
+    // launch listener
+    listen();
+}).
+    catch((err) => {
+    log(0, "Cannot start Controller");
+    log(0, err);
+});

@@ -7,7 +7,7 @@ spec:
   config:
     replicas: 1
     prometheus: false
-    log-level: 9
+    logLevel: 9
   ingress:
     name: ingress-jfvilas
     # NGINX Ingress

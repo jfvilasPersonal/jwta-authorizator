@@ -93,6 +93,7 @@ class BasicValidator {
                                 }
                             });
                         });
+                        //+++ revisaer esto codigo, creo que deberia ir justo antes del resolve
                         context.decoded = decoded;
                         context.validationStatus = true;
                     }

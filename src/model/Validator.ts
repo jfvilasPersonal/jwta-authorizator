@@ -1,8 +1,14 @@
 import { IValidator } from "../validators/IValidator"
 
 export type Validator = {
+    // general properties
     name:string,
     type:string,
+    aud?:string,
+    iss?:string,
+    verify:boolean,
+    url?:string,
+    ivalidator:IValidator|undefined,
 
     // Azure
     tenant?: string,
@@ -18,13 +24,9 @@ export type Validator = {
     // BasicAuthList
     users?: [],
     
-    // generales
-    aud?:string,
-    iss?:string,
-    verify:boolean,
-
-
-
-    url?:string,
-    ivalidator:IValidator|undefined
+    // Custom
+    code: string,
+    configMap: string,
+    key: string
+    
 }

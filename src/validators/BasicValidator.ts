@@ -122,7 +122,8 @@ export class BasicValidator {
                 resolve(decoded);
               }
             });
-          });  
+          });
+          //+++ revisaer esto codigo, creo que deberia ir justo antes del resolve
           context.decoded=(decoded as {});
           context.validationStatus=true; 
         }
