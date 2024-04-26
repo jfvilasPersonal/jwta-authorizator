@@ -511,14 +511,14 @@ async function getValidator(authorizator:string,name:string) {
             await coreApi.createNamespacedSecret(env.obkaNamespace, secret);
           }
           else {
-            log(1,`Secret found, looking for key '${validator.storeKey}' in secret`);
+            log(0,`Secret found, looking for key '${validator.storeKey}' in secret`);
             var value = Buffer.from(secretData[validator.storeKey], 'base64').toString('utf-8');
             usersdb=JSON.parse(value);
-            log(0,`Read usersdb ${JSON.stringify(usersdb)}`);
+            log(1,`Read usersdb ${JSON.stringify(usersdb)}`);
           }
 
           if (validator.users!==undefined) {
-            log(0,'Copying new users to usersdb');
+            log(1,'Copying new users to usersdb');
             for (var user of validator.users) {
               log(1, user);
               var u:any=user;
@@ -530,7 +530,7 @@ async function getValidator(authorizator:string,name:string) {
                 log(1, `Skipped ${u.name}`);
               }
             }
-            log(0, `Updating usersdb in secret`);
+            log(1, `Updating usersdb in secret`);
             (secret as any).data[validator.storeKey] = Buffer.from(JSON.stringify(usersdb), 'utf-8').toString('base64');
             await coreApi.replaceNamespacedSecret(secretName,env.obkaNamespace, secret);
           }
@@ -545,7 +545,7 @@ async function getValidator(authorizator:string,name:string) {
         // we read all users from validator and store them in a simpler format:  { 'user1': 'password1' , 'user2': 'password2'... }
         if (validator.users) {
           for (var usr of validator.users) {
-            log(0, `Adding user ${usr}`);
+            log(1, `Adding user ${JSON.stringify(usr)}`);
             usersdb[(usr as any).name] = (usr as any).password;
           }
         }

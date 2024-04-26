@@ -518,7 +518,7 @@ async function getValidator(authorizator, name) {
                 // we read all users from validator and store them in a simpler format:  { 'user1': 'password1' , 'user2': 'password2'... }
                 if (validator.users) {
                     for (var usr of validator.users) {
-                        log(0, `Adding user ${usr}`);
+                        log(0, `Adding user ${JSON.stringify(usr)}`);
                         usersdb[usr.name] = usr.password;
                     }
                 }
