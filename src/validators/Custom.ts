@@ -1,9 +1,9 @@
 import { RequestContext } from '../model/RequestContext';
 import { Validator } from '../model/Validator';
-import { IValidator } from './IValidator';
-import { BasicValidator } from './BasicValidator';
+import { ITokenDecoder } from './ITokenDecoder';
+import { Basic } from './Basic';
 
-export class Custom extends BasicValidator implements IValidator {
+export class Custom extends Basic implements ITokenDecoder {
   validFunction:boolean = false;
   authorize = function(a?:object) { return "$$INVALID$$" };
 

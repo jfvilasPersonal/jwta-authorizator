@@ -1,19 +1,14 @@
 import axios from 'axios';
-import jwt from 'jsonwebtoken';
-import jkwsClient from 'jwks-rsa';
-import { RequestContext } from '../model/RequestContext';
 import { Validator } from '../model/Validator';
-import { IValidator } from './IValidator';
-import { BasicValidator } from './BasicValidator';
+import { ITokenDecoder } from './ITokenDecoder';
+import { Basic as Basic } from './Basic';
 
-export class KeyCloak extends BasicValidator implements IValidator {
+export class KeyCloak extends Basic implements ITokenDecoder {
 
   constructor (val:Validator) {
     super(val);
     //+++if (val.schedule) cron.schedule(val.schedule, this.cacheKeys);
 
-    //var openIdUrl = `https://${val.tenant}.b2clogin.com/${val.tenant}.onmicrosoft.com/${val.userflow}/v2.0/.well-known/openid-configuration`;
-    //http://localhost:8080/realms/testrealm/.well-known/openid-configuration
     var openIdUrl = `${val.url}/realms/${val.realm}/.well-known/openid-configuration`;
     axios.get(openIdUrl).then ( async (response) => {
       this.jwksUri = response.data.jwks_uri;

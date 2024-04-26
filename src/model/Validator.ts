@@ -1,4 +1,4 @@
-import { IValidator } from "../validators/IValidator"
+import { ITokenDecoder } from "../validators/ITokenDecoder"
 
 export type Validator = {
     // general properties
@@ -8,7 +8,7 @@ export type Validator = {
     iss?:string,
     verify:boolean,
     url?:string,
-    ivalidator:IValidator|undefined,
+    decoder:ITokenDecoder|undefined,
 
     // Azure
     tenant?: string,
@@ -22,7 +22,10 @@ export type Validator = {
     realm?: string,
     
     // BasicAuthList
-    users?: [],
+    storeType: string,
+    storeSecret: string,
+    storeKey: string,
+    users?: {}[],
     
     // Custom
     code: string,

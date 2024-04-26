@@ -1,18 +1,20 @@
 import express from 'express';
 import bodyParser from 'body-parser';
+import { Buffer } from "buffer";
+
 import { RequestContext } from './model/RequestContext';
 import { Rule } from './model/Rule';
 import { Validator } from './model/Validator';
 import { Environment } from './model/Environment';
 
-import { IValidator } from './validators/IValidator';
+import { ITokenDecoder } from './validators/ITokenDecoder';
 
 import { AzureB2c } from './validators/AzureB2c';
 import { Google } from './validators/Google';
 import { AzureAd } from './validators/AzureAd';
 import { Cognito } from './validators/Cognito';
 import { KeyCloak } from './validators/KeyCloak';
-import { BasicAuthList } from './validators/BasicAuthList';
+import { BasicAuth } from './validators/BasicAuth';
 import { Custom } from './validators/Custom';
 import { NullValidator } from './validators/NullValidator';
 import { Counter, register } from 'prom-client';
@@ -89,9 +91,9 @@ async function validateRule(rule:Rule, context:RequestContext):Promise<boolean> 
 
     log(5,"Test 'valid' ruletype with validator");
     log(5,validator);
-    var v = env.obkaValidators.get(env.obkaName)?.get(validator.name)?.ivalidator;
+    var v = env.obkaValidators.get(env.obkaName)?.get(validator.name)?.decoder;
     if (v===undefined) {
-      log(0,`IValidator does not exist (undefined): ${env.obkaName}/${validator.name}`);
+      log(0,`Validator does not exist (undefined): ${env.obkaName}/${validator.name}`);
       continue;
     }
 
@@ -261,8 +263,8 @@ async function validateRule(rule:Rule, context:RequestContext):Promise<boolean> 
       }
     }
     else {
-      if (validator.type==="basicAuthList") {
-        log(1, "obtener response header");
+      if (validator.type==="basicAuth") {
+        log(1, "Get response header from basicAuth Validator");
         await v.decodeAndValidateToken(context);
         console.log(context.responseHeaders);
         return false;
@@ -318,7 +320,6 @@ async function validateRequest (context:RequestContext):Promise<boolean> {
   //search for 'prefix' rule uri
   log(2,"Search 'prefix' uri: "+context.uri);
   for (const r of context.ruleset as Array<Rule>) {
-    //+++ if a 'reject' behaviour has been fired, we should return
     if (r.uritype==="prefix" && context.uri.startsWith(r.uri)) {
       log(3,"Test "+context.uri+" prefix")
       //if (await validateRule(r,context)) return true;
@@ -373,7 +374,7 @@ async function validateRequest (context:RequestContext):Promise<boolean> {
     }
   }
 
-
+  //+++ if no uri matches, we return false, what  in fact will return 401 to ingress, what in fact will return 401 to browser: even if the uri resource doesn't exist
   return false;
 }
 
@@ -462,8 +463,8 @@ async function createAuthorizatorValidators(authorizator:string) {
       var val = env.obkaValidators.get(authorizator)?.get(valName);
       if (val) {
         log(1,val);
-        var ival = await getValidator(authorizator,valName);
-        val.ivalidator = (ival as IValidator);
+        var decoder = await getValidator(authorizator,valName);
+        val.decoder = (decoder as ITokenDecoder);
         log(1,val);
       }
       else {
@@ -488,12 +489,70 @@ async function getValidator(authorizator:string,name:string) {
       return new Cognito(validator);
     case 'keycloak':
       return new KeyCloak(validator);
-    case 'basicAuthList':
-      return new BasicAuthList(validator);
-    case 'basicAuthSecret':
-      //return new BasicAuthSecret(validator);
+    case 'basicAuth':
+      console.log(`basicAuth store type: ${validator.storeType}`);
+      var usersdb:any = {};
+      if (validator.storeType==='secret') {
+        if (validator.storeSecret!==undefined) {
+          var ct = await coreApi.readNamespacedSecret(validator.storeSecret,env.obkaNamespace);
+          var secretData = ct.body.data;
+          var secretName = validator.storeSecret;
+          var secret = {
+            metadata: {
+              name: validator.storeSecret,
+              namespace: env.obkaNamespace
+            },
+            data: {}
+          };
+
+          if (secretData===undefined) {
+            log(0,`No secret '${validator.storeSecret}' exists, we create an empty 'userdb' secret`);
+            (secret as any).data[validator.storeKey] = 'e30=';   // {} in base64
+            await coreApi.createNamespacedSecret(env.obkaNamespace, secret);
+          }
+          else {
+            log(1,`Secret found, looking for key '${validator.storeKey}' in secret`);
+            var value = Buffer.from(secretData[validator.storeKey], 'base64').toString('utf-8');
+            usersdb=JSON.parse(value);
+            log(0,`Read usersdb ${JSON.stringify(usersdb)}`);
+          }
+
+          if (validator.users!==undefined) {
+            log(0,'Copying new users to usersdb');
+            for (var user of validator.users) {
+              log(1, user);
+              var u:any=user;
+              if (usersdb[u.name]===undefined) {
+                log(1, `Added ${u.name}`);
+                usersdb[u.name]=u.password;
+              }
+              else {
+                log(1, `Skipped ${u.name}`);
+              }
+            }
+            log(0, `Updating usersdb in secret`);
+            (secret as any).data[validator.storeKey] = Buffer.from(JSON.stringify(usersdb), 'utf-8').toString('base64');
+            await coreApi.replaceNamespacedSecret(secretName,env.obkaNamespace, secret);
+          }
+        }
+        else {
+          log(0,"No storeSecret provided");
+          return new NullValidator(false); 
+        }
+      }
+      else {
+        // we are working on an 'inline' validator
+        // we read all users from validator and store them in a simpler format:  { 'user1': 'password1' , 'user2': 'password2'... }
+        if (validator.users) {
+          for (var usr of validator.users) {
+            log(0, `Adding user ${usr}`);
+            usersdb[(usr as any).name] = (usr as any).password;
+          }
+        }
+      }
+      return new BasicAuth(validator, usersdb);
     case 'custom':
-      console.log("cm:"+validator.configMap);
+      log(0,"cm:"+validator.configMap);
       if (validator.configMap) {
         var content = await coreApi.readNamespacedConfigMap(validator.configMap,env.obkaNamespace);
         var data = content.body.data;

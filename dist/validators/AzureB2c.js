@@ -5,8 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AzureB2c = void 0;
 const axios_1 = __importDefault(require("axios"));
-const BasicValidator_1 = require("./BasicValidator");
-class AzureB2c extends BasicValidator_1.BasicValidator {
+const Basic_1 = require("./Basic");
+class AzureB2c extends Basic_1.Basic {
     constructor(val) {
         super(val);
         //+++if (val.schedule) cron.schedule(val.schedule, this.cacheKeys);

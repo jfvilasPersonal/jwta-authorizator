@@ -5,13 +5,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.KeyCloak = void 0;
 const axios_1 = __importDefault(require("axios"));
-const BasicValidator_1 = require("./BasicValidator");
-class KeyCloak extends BasicValidator_1.BasicValidator {
+const Basic_1 = require("./Basic");
+class KeyCloak extends Basic_1.Basic {
     constructor(val) {
         super(val);
         //+++if (val.schedule) cron.schedule(val.schedule, this.cacheKeys);
-        //var openIdUrl = `https://${val.tenant}.b2clogin.com/${val.tenant}.onmicrosoft.com/${val.userflow}/v2.0/.well-known/openid-configuration`;
-        //http://localhost:8080/realms/testrealm/.well-known/openid-configuration
         var openIdUrl = `${val.url}/realms/${val.realm}/.well-known/openid-configuration`;
         axios_1.default.get(openIdUrl).then(async (response) => {
             this.jwksUri = response.data.jwks_uri;

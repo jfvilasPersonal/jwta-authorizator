@@ -4,7 +4,7 @@ import jkwsClient from 'jwks-rsa';
 import { RequestContext } from '../model/RequestContext';
 import { Validator } from '../model/Validator'
 
-export class BasicValidator {
+export class Basic {
   name!:string;
   type!:string;
   client:any;
@@ -40,7 +40,7 @@ export class BasicValidator {
     console.log('Test special conditions');
 
     if (context.validationStatus) {
-      // primero validamos aud si se ha indicado en la definicion del validator
+      // First, we check AUD conditions (if something has been detailed in validator definition
       if (this.aud) {
         console.log('Validate aud');
         if (!context.decoded?.aud) {
@@ -60,7 +60,7 @@ export class BasicValidator {
       else {
         console.log("no aud special condition present");
       }
-      // luego iss. preguntamos por validationstatus, porque si viene a false (puede ser valido pero no cumplir aud) ya no miramos iss
+      // then check ISS. First we check validationStatus, since it can be set to false after checkin AUD conditions, in such a case we don't check for ISS
       if (context.validationStatus) {
         if (this.iss) {
           console.log('Validate iss');
@@ -123,7 +123,6 @@ export class BasicValidator {
               }
             });
           });
-          //+++ revisaer esto codigo, creo que deberia ir justo antes del resolve
           context.decoded=(decoded as {});
           context.validationStatus=true; 
         }

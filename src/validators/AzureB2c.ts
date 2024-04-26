@@ -3,10 +3,10 @@ import axios from 'axios';
 // import jkwsClient from 'jwks-rsa';
 // import { RequestContext } from '../model/RequestContext';
 import { Validator } from '../model/Validator';
-import { IValidator } from './IValidator';
-import { BasicValidator } from './BasicValidator';
+import { ITokenDecoder } from './ITokenDecoder';
+import { Basic } from './Basic';
 
-export class AzureB2c extends BasicValidator implements IValidator {
+export class AzureB2c extends Basic implements ITokenDecoder {
 
   constructor (val:Validator) {
     super(val);

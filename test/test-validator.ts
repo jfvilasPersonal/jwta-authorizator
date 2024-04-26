@@ -2,16 +2,22 @@ import { RequestContext } from '../src/model/RequestContext';
 import { Validator } from '../src/model/Validator';
 import { AzureB2c } from '../src/validators/AzureB2c';
 // import { Cognito } from '../src/validators/Cognito';
-import { IValidator } from '../src/validators/IValidator';
+import { ITokenDecoder } from '../src/validators/ITokenDecoder';
 
 
 var val:Validator = {
-  name:'eulennopro',
-  type:'azure-b2c',
-  tenant:'eulennopro',
-  userflow:'B2C_1_password',
-  verify:true,
-  ivalidator:undefined
+    name: 'eulennopro',
+    type: 'azure-b2c',
+    tenant: 'eulennopro',
+    userflow: 'B2C_1_password',
+    verify: true,
+    decoder: undefined,
+    storeType: '',
+    storeSecret: '',
+    storeKey: '',
+    code: '',
+    configMap: '',
+    key: ''
 }
 
 var a=new AzureB2c(val);
@@ -20,9 +26,10 @@ var a=new AzureB2c(val);
 // var d=new AzureAd('ad', '695977ed-bd45-4142-b7fb-964533a79127', '');
 
 
-var rc:RequestContext = {    
+var rc:RequestContext = {
     uri: '',
-    ruleset: []
+    ruleset: [],
+    responseHeaders: new Map()
 };
 
 var tokens:Array<string>=[];
@@ -42,14 +49,14 @@ tokens[4]=cgne2;
 tokens[5]=cgnt;
 tokens[6]=aadt;
 
-async function try1(validator:IValidator, t:string) {
+async function try1(decoder:ITokenDecoder, t:string) {
 
     console.log ("***************************************************************************************************************************");
     rc.token=t;
     delete rc.validationStatus;
     delete rc.validationError;
     var start=new Date().getTime();
-    await validator.decodeAndValidateToken(rc);
+    await decoder.decodeAndValidateToken(rc);
     console.log(rc.validationStatus, (new Date().getTime()-start));
     return rc.validationStatus;
 
@@ -68,7 +75,7 @@ async function main() {
 
     var start=new Date().getTime();
 
-    var validators:Array<IValidator>=[];
+    var validators:Array<ITokenDecoder>=[];
     validators.push(a);
     // validators.push(c);
     // validators.push(d);

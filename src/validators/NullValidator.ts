@@ -1,7 +1,7 @@
 import { RequestContext } from '../model/RequestContext';
-import { IValidator } from './IValidator'
+import { ITokenDecoder } from './ITokenDecoder'
 
-export class NullValidator implements IValidator {
+export class NullValidator implements ITokenDecoder {
   returnValue=false;
 
   constructor (returnValue:boolean) {

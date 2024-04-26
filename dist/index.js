@@ -28,12 +28,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const body_parser_1 = __importDefault(require("body-parser"));
+const buffer_1 = require("buffer");
 const AzureB2c_1 = require("./validators/AzureB2c");
 const Google_1 = require("./validators/Google");
 const AzureAd_1 = require("./validators/AzureAd");
 const Cognito_1 = require("./validators/Cognito");
 const KeyCloak_1 = require("./validators/KeyCloak");
-const BasicAuthList_1 = require("./validators/BasicAuthList");
+const BasicAuth_1 = require("./validators/BasicAuth");
 const Custom_1 = require("./validators/Custom");
 const NullValidator_1 = require("./validators/NullValidator");
 const prom_client_1 = require("prom-client");
@@ -99,9 +100,9 @@ async function validateRule(rule, context) {
         }
         log(5, "Test 'valid' ruletype with validator");
         log(5, validator);
-        var v = (_d = (_c = env.obkaValidators.get(env.obkaName)) === null || _c === void 0 ? void 0 : _c.get(validator.name)) === null || _d === void 0 ? void 0 : _d.ivalidator;
+        var v = (_d = (_c = env.obkaValidators.get(env.obkaName)) === null || _c === void 0 ? void 0 : _c.get(validator.name)) === null || _d === void 0 ? void 0 : _d.decoder;
         if (v === undefined) {
-            log(0, `IValidator does not exist (undefined): ${env.obkaName}/${validator.name}`);
+            log(0, `Validator does not exist (undefined): ${env.obkaName}/${validator.name}`);
             continue;
         }
         log(1, "Validator type: " + validator.type);
@@ -259,8 +260,8 @@ async function validateRule(rule, context) {
             }
         }
         else {
-            if (validator.type === "basicAuthList") {
-                log(1, "obtener response header");
+            if (validator.type === "basicAuth") {
+                log(1, "Get response header from basicAuth Validator");
                 await v.decodeAndValidateToken(context);
                 console.log(context.responseHeaders);
                 return false;
@@ -312,7 +313,6 @@ async function validateRequest(context) {
     //search for 'prefix' rule uri
     log(2, "Search 'prefix' uri: " + context.uri);
     for (const r of context.ruleset) {
-        //+++ if a 'reject' behaviour has been fired, we should return
         if (r.uritype === "prefix" && context.uri.startsWith(r.uri)) {
             log(3, "Test " + context.uri + " prefix");
             //if (await validateRule(r,context)) return true;
@@ -362,6 +362,7 @@ async function validateRequest(context) {
             }
         }
     }
+    //+++ if no uri matches, we return false, what  in fact will return 401 to ingress, what in fact will return 401 to browser: even if the uri resource doesn't exist
     return false;
 }
 function log(level, obj) {
@@ -438,8 +439,8 @@ async function createAuthorizatorValidators(authorizator) {
             var val = (_b = env.obkaValidators.get(authorizator)) === null || _b === void 0 ? void 0 : _b.get(valName);
             if (val) {
                 log(1, val);
-                var ival = await getValidator(authorizator, valName);
-                val.ivalidator = ival;
+                var decoder = await getValidator(authorizator, valName);
+                val.decoder = decoder;
                 log(1, val);
             }
             else {
@@ -463,12 +464,68 @@ async function getValidator(authorizator, name) {
             return new Cognito_1.Cognito(validator);
         case 'keycloak':
             return new KeyCloak_1.KeyCloak(validator);
-        case 'basicAuthList':
-            return new BasicAuthList_1.BasicAuthList(validator);
-        case 'basicAuthSecret':
-        //return new BasicAuthSecret(validator);
+        case 'basicAuth':
+            console.log(`basicAuth store type: ${validator.storeType}`);
+            var usersdb = {};
+            if (validator.storeType === 'secret') {
+                if (validator.storeSecret !== undefined) {
+                    var ct = await coreApi.readNamespacedSecret(validator.storeSecret, env.obkaNamespace);
+                    var secretData = ct.body.data;
+                    var secretName = validator.storeSecret;
+                    var secret = {
+                        metadata: {
+                            name: validator.storeSecret,
+                            namespace: env.obkaNamespace
+                        },
+                        data: {}
+                    };
+                    if (secretData === undefined) {
+                        log(0, `No secret '${validator.storeSecret}' exists, we create an empty 'userdb' secret`);
+                        secret.data[validator.storeKey] = 'e30='; // {} in base64
+                        await coreApi.createNamespacedSecret(env.obkaNamespace, secret);
+                    }
+                    else {
+                        log(1, `Secret found, looking for key '${validator.storeKey}' in secret`);
+                        var value = buffer_1.Buffer.from(secretData[validator.storeKey], 'base64').toString('utf-8');
+                        usersdb = JSON.parse(value);
+                        log(0, `Read usersdb ${JSON.stringify(usersdb)}`);
+                    }
+                    if (validator.users !== undefined) {
+                        log(0, 'Copying new users to usersdb');
+                        for (var user of validator.users) {
+                            log(1, user);
+                            var u = user;
+                            if (usersdb[u.name] === undefined) {
+                                log(1, `Added ${u.name}`);
+                                usersdb[u.name] = u.password;
+                            }
+                            else {
+                                log(1, `Skipped ${u.name}`);
+                            }
+                        }
+                        log(0, `Updating usersdb in secret`);
+                        secret.data[validator.storeKey] = buffer_1.Buffer.from(JSON.stringify(usersdb), 'utf-8').toString('base64');
+                        await coreApi.replaceNamespacedSecret(secretName, env.obkaNamespace, secret);
+                    }
+                }
+                else {
+                    log(0, "No storeSecret provided");
+                    return new NullValidator_1.NullValidator(false);
+                }
+            }
+            else {
+                // we are working on an 'inline' validator
+                // we read all users from validator and store them in a simpler format:  { 'user1': 'password1' , 'user2': 'password2'... }
+                if (validator.users) {
+                    for (var usr of validator.users) {
+                        log(0, `Adding user ${usr}`);
+                        usersdb[usr.name] = usr.password;
+                    }
+                }
+            }
+            return new BasicAuth_1.BasicAuth(validator, usersdb);
         case 'custom':
-            console.log("cm:" + validator.configMap);
+            log(0, "cm:" + validator.configMap);
             if (validator.configMap) {
                 var content = await coreApi.readNamespacedConfigMap(validator.configMap, env.obkaNamespace);
                 var data = content.body.data;

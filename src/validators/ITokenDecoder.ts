@@ -1,6 +1,6 @@
 import { RequestContext } from '../model/RequestContext';
 
-export interface IValidator {
+export interface ITokenDecoder {
     decodeAndValidateToken(context:RequestContext) : Promise<void>;
 }
   

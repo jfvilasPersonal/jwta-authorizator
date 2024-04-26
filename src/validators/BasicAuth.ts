@@ -1,28 +1,21 @@
 import { RequestContext } from '../model/RequestContext';
 import { Validator } from '../model/Validator';
-import { IValidator } from './IValidator';
-import { BasicValidator } from './BasicValidator';
+import { ITokenDecoder } from './ITokenDecoder';
+import { Basic } from './Basic';
 
-interface User {
-  name: string,
-  password:string
-}
-
-export class BasicAuthList extends BasicValidator implements IValidator {
-  users: User[] | undefined;
+export class BasicAuth extends Basic implements ITokenDecoder {
+  usersdb: any = {};
   realm: string | undefined;
 
-  constructor (val:Validator) {
+  constructor (val:Validator, usersdb:{}) {
     super(val);
-    this.type="basic-auth-list";
-    this.users=val.users;
+    this.type="basic-auth";
+    this.usersdb=usersdb;
     this.realm=val.realm;
-    console.log("Users:");
-    console.log(this.users);
+    console.log("Starting usersdb:");
+    console.log(this.usersdb);
   }
 
-  //+++ disponer de basicauth list con array, conconfigmap y con secret (estos ultimos permitirian cambiiar lass passwords)
-  
   decodeAndValidateToken = async (context:RequestContext) => {
     try {
       console.log("decode token BAL");
@@ -34,15 +27,19 @@ export class BasicAuthList extends BasicValidator implements IValidator {
         return;
       } 
       if (!context.validationStatus) {
-        // decodificar el token (que es el header authorization de basic auth)
-        var decoded=Buffer.from(context.token, 'base64').toString()
+        // decode the token (it is in fact the authorization header of a basic auth)
+        console.log(`Received: ${context.token}`);
+        var token=context.token.trim();
+        if (token.startsWith('Basic ')) token=token.substring(6);
+        var decoded=Buffer.from(token, 'base64').toString('utf-8');
+        console.log(`Decoded: ${decoded}`);
         var i =decoded.indexOf(':');
         var username=decoded.substring(0,i);
-        var password=decoded.substring(i);
-        console.log(`Find user '${username}' with password '${password}'`);
-        var user = this.users?.find( u => u.name===username && u.password === password);
-        if (user!==null) {
-          console.log("Found: "+user);
+        var password=decoded.substring(i+1);
+
+        console.log(`Find user '${username}' with password *****`);
+        if (this.usersdb && this.usersdb[username]===password) {
+          console.log("Found: "+username);
           context.decoded=username;
           context.validationStatus=true; 
         }

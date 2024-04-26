@@ -10,19 +10,13 @@ spec:
     logLevel: 9
   ingress:
     name: ingress-jfvilas
-    # NGINX Ingress
-    # provider: nginx-ingress
-    ##### class: nginx
-    # Ingress Nginx
-    # provider: ingress-nginx
-    ##### class: nginx
-    # Traefik
     provider: ingress-nginx
     class: nginx
   validators:
-    - basicAuthList:
+    - basicAuth:
         name: testbal
         realm: testrealm
+        storeType: inline
         users: 
           - name: u
             password: p

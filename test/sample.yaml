@@ -1,4 +1,35 @@
-# https://dev.to/samippoudel/google-oauth-using-typescript-expressjs-passportjs-mongodb-5el8
+apiVersion: v1
+kind: Secret
+metadata:
+  name: users
+  namespace: dev
+data:
+  db: 'e30='
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: obk-authorizator-role
+  namespace: dev
+rules:
+  # "" indicates the core API group
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get","add","update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: obk-authorizator-rolebinding
+  namespace: dev
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace : dev
+roleRef:
+  kind: Role
+  name: obk-authorizator-role
+---
 apiVersion: jfvilas.at.outlook.com/v1
 kind: ObkAuthorizator
 metadata:
@@ -11,18 +42,29 @@ spec:
     logLevel: 9
   ingress:
     name: ingress-jfvilas
-    # NGINX Ingress
-    # provider: nginx-ingress
-    ##### class: nginx
-    # Ingress Nginx
-    # provider: ingress-nginx
-    ##### class: nginx
-    # Traefik
     provider: ingress-nginx
     class: nginx
   validators:
-    - google:
-        name: testgoogle
+    - basicAuth:
+        name: testSecret
+        realm: testrealm
+        storeType: secret
+        storeSecret: users
+        storeKey: db
+        users: 
+          - name: u1
+            password: p1
+          - name: u2
+            password: p2
+    - basicAuth:
+        name: testBasicList
+        realm: testrealm
+        storeType: inline
+        users: 
+          - name: julio
+            password: angel2
+          - name: u2
+            password: password
   ruleset:
     # unrestricted
     - uri: "/"
@@ -32,5 +74,10 @@ spec:
     - uri: "/protect/"
       uritype: "prefix"
       type: "valid"
-      validators: [ testgoogle ]
+      validators: [ testSecret ]
+      onfalse: reject
+    - uri: "/check/"
+      uritype: "prefix"
+      type: "valid"
+      validators: [ testBasicList ]
       onfalse: reject

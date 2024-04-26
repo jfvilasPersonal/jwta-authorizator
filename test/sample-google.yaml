@@ -11,6 +11,13 @@ spec:
     logLevel: 9
   ingress:
     name: ingress-jfvilas
+    # NGINX Ingress
+    # provider: nginx-ingress
+    ##### class: nginx
+    # Ingress Nginx
+    # provider: ingress-nginx
+    ##### class: nginx
+    # Traefik
     provider: ingress-nginx
     class: nginx
   validators:
@@ -26,3 +33,4 @@ spec:
       uritype: "prefix"
       type: "valid"
       validators: [ testgoogle ]
+      onfalse: reject
