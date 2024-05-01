@@ -18,6 +18,7 @@ export class BasicAuth extends Basic implements ITokenDecoder {
 
   decodeAndValidateToken = async (context:RequestContext) => {
     try {
+      this.totalRequests++;
       console.log("decode token BAL");
       if (!context.token) {
         //if (context.responseHeaders===undefined) context.responseHeaders=new Map();
@@ -30,7 +31,7 @@ export class BasicAuth extends Basic implements ITokenDecoder {
         // decode the token (it is in fact the authorization header of a basic auth)
         console.log(`Received: ${context.token}`);
         var token=context.token.trim();
-        if (token.startsWith('Basic ')) token=token.substring(6);
+        // no needed if (token.startsWith('Basic ')) token=token.substring(6);
         var decoded=Buffer.from(token, 'base64').toString('utf-8');
         console.log(`Decoded: ${decoded}`);
         var i =decoded.indexOf(':');

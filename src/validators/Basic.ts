@@ -13,8 +13,8 @@ export class Basic {
   iss!:string;
   aud!:string;
   verify:boolean=true;
-
-
+  totalRequests:number=0;
+  
   constructor (val:Validator) {
     this.name=val.name;
     this.type=val.type;
@@ -98,6 +98,7 @@ export class Basic {
 
   decodeAndValidateToken = async (context:RequestContext) => {
     try {
+      this.totalRequests++;
       const options = {
         //audience: [applicationId],
         //issuer: [issuerUri]

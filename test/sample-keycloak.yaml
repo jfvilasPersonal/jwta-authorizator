@@ -25,24 +25,27 @@ spec:
         realm: testrealm
         url: http://keycloak.dev.svc.cluster.local:8080
   ruleset:
-    # unrestricted
-    - uri: "/"
-      uritype: "exact"
-      type: "unrestricted"
-    # valid
-    - uri: "/validkc/"
-      uritype: "prefix"
-      type: "valid"
-      validators: [ testkc ]
-      # si el token no esta presente o no es valido
-      onfalse: reject
-      ontrue: continue
-    - uri: "/validkc/cont/"
-      uritype: "exact"
-      type: "valid"
-      validators: [ testkc ]
-    - uri: "/validkc/cortar/"
-      uritype: "exact"
-      type: "valid"
-      validators: [ testkc ]
-      ontrue: reject
+    name: app1
+    uriPrefix: ''
+    rules:
+      # unrestricted
+      - uri: "/"
+        uritype: "exact"
+        type: "unrestricted"
+      # valid
+      - uri: "/validkc/"
+        uritype: "prefix"
+        type: "valid"
+        validators: [ testkc ]
+        # si el token no esta presente o no es valido
+        onfalse: reject
+        ontrue: continue
+      - uri: "/validkc/cont/"
+        uritype: "exact"
+        type: "valid"
+        validators: [ testkc ]
+      - uri: "/validkc/cortar/"
+        uritype: "exact"
+        type: "valid"
+        validators: [ testkc ]
+        ontrue: reject

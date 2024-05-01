@@ -39,6 +39,7 @@ spec:
   config:
     replicas: 1
     prometheus: false
+    console: true
     logLevel: 9
   ingress:
     name: ingress-jfvilas
@@ -66,18 +67,21 @@ spec:
           - name: u2
             password: password
   ruleset:
-    # unrestricted
-    - uri: "/"
-      uritype: "exact"
-      type: "unrestricted"
-    # valid
-    - uri: "/protect/"
-      uritype: "prefix"
-      type: "valid"
-      validators: [ testSecret ]
-      onfalse: reject
-    - uri: "/check/"
-      uritype: "prefix"
-      type: "valid"
-      validators: [ testBasicList ]
-      onfalse: reject
+    name: app1
+    uriPrefix: ''
+    rules:
+      # unrestricted
+      - uri: "/"
+        uritype: "exact"
+        type: "unrestricted"
+      # valid
+      - uri: "/protect/"
+        uritype: "prefix"
+        type: "valid"
+        validators: [ testSecret ]
+        onfalse: reject
+      - uri: "/check/"
+        uritype: "prefix"
+        type: "valid"
+        validators: [ testBasicList ]
+        onfalse: reject

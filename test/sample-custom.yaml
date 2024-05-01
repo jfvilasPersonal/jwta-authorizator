@@ -71,13 +71,16 @@ spec:
         configMap: test-custom
         key: function
   ruleset:
-    # unrestricted
-    - uri: "/"
-      uritype: "exact"
-      type: "unrestricted"
-    # valid
-    - uri: "/protect/"
-      uritype: "prefix"
-      type: "valid"
-      validators: [ testcustom ]
-      onfalse: reject
+    name: app1
+    uriPrefix: ''
+    rules:
+      # unrestricted
+      - uri: "/"
+        uritype: "exact"
+        type: "unrestricted"
+      # valid
+      - uri: "/protect/"
+        uritype: "prefix"
+        type: "valid"
+        validators: [ testcustom ]
+        onfalse: reject

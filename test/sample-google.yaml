@@ -24,13 +24,16 @@ spec:
     - google:
         name: testgoogle
   ruleset:
-    # unrestricted
-    - uri: "/"
-      uritype: "exact"
-      type: "unrestricted"
-    # valid
-    - uri: "/protect/"
-      uritype: "prefix"
-      type: "valid"
-      validators: [ testgoogle ]
-      onfalse: reject
+    name: app1
+    uriPrefix: ''
+    rules:
+      # unrestricted
+      - uri: "/"
+        uritype: "exact"
+        type: "unrestricted"
+      # valid
+      - uri: "/protect/"
+        uritype: "prefix"
+        type: "valid"
+        validators: [ testgoogle ]
+        onfalse: reject

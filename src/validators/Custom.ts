@@ -36,6 +36,7 @@ export class Custom extends Basic implements ITokenDecoder {
 
   decodeAndValidateToken = async (context:RequestContext) => {
     try {
+      this.totalRequests++;
       console.log("Decode token Custom");
       if (!context.validationStatus) {
         if (this.validFunction) {
@@ -43,7 +44,7 @@ export class Custom extends Basic implements ITokenDecoder {
           try {
               console.log("Invoking custom authorize function");
               var requestData= {
-                uri: context.uri,
+                uri: context.requestUri,
                 token: context.token
               };
               context.decoded = this.authorize(requestData);

@@ -9,7 +9,7 @@ class AzureAd extends Basic_1.Basic {
         this.jwksUri = `https://login.microsoftonline.com/${val.tenant}/discovery/v2.0/keys`;
         console.log('Creating AzureAD validator with jwks: ' + this.jwksUri);
         this.cacheKeys();
-        //if (schedule) cron.schedule(schedule, this.cacheKeys);
+        //+++if (schedule) cron.schedule(schedule, this.cacheKeys);
     }
 }
 exports.AzureAd = AzureAd;

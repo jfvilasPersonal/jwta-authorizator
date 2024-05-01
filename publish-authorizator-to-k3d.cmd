@@ -1,5 +1,7 @@
 call update-version
 call npm run build
+mkdir dist\admin
+xcopy /s /y ..\obk-admin\build\*.* dist\admin
 kubectl delete -f test\sample.yaml
 rem kubectl delete configmap obk-authorizator-ingress-jfvilas-configmap -n dev
 kubectl delete deployment obk-authorizator-ja-jfvilas-deply -n dev

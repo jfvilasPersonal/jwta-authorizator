@@ -13,9 +13,9 @@ metadata:
   namespace: dev
 rules:
   # "" indicates the core API group
-  - apiGroups: [""]
-    resources: ["secrets"]
-    verbs: ["get","add","update"]
+  - apiGroups: [ '' ]
+    resources: [ 'secrets' ]
+    verbs: [ 'get', 'add', 'update' ]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -39,6 +39,7 @@ spec:
   config:
     replicas: 1
     prometheus: false
+    console: true
     logLevel: 9
   ingress:
     name: ingress-jfvilas
@@ -53,31 +54,62 @@ spec:
         storeKey: db
         users: 
           - name: u1
-            password: p1333
+            password: p1
           - name: u2
-            password: p2333
+            password: p2
     - basicAuth:
         name: testBasicList
         realm: testrealm
         storeType: inline
         users: 
           - name: julio
-            password: angel2
+            password: angel
           - name: u2
-            password: password
+            password: p2
   ruleset:
-    # unrestricted
-    - uri: "/"
-      uritype: "exact"
-      type: "unrestricted"
-    # valid
-    - uri: "/protect/"
-      uritype: "prefix"
-      type: "valid"
-      validators: [ testSecret ]
-      onfalse: reject
-    - uri: "/check/"
-      uritype: "prefix"
-      type: "valid"
-      validators: [ testBasicList ]
-      onfalse: reject
+    - name: general
+      uriPrefix: [ '/favicon.ico', '/obka-admin'  ]
+      rules: 
+        # unrestricted
+        - uris: [ '' ]
+          uritype: prefix
+          type: unrestricted
+    - name: demo
+      uriPrefix: [ '/demo'  ]
+      rules: 
+        # unrestricted
+        - uri: ''
+          uris: [ '/' ]
+          uritype: prefix
+          type: unrestricted
+    - name: app1
+      uriPrefix: [ '/app1' ]
+      rules: 
+        # unrestricted
+        - uri: ''
+          uritype: exact
+          type: unrestricted
+        # valid
+        - uris: [ '/protect', '/check/' ]
+          uritype: prefix
+          type: valid
+          validators: [ testSecret ]
+          onfalse: reject
+    - name: app2
+      uriPrefix: [ '/app2' ]
+      rules: 
+        # unrestricted
+        - uri: '/'
+          uritype: exact
+          type: unrestricted
+        # valid
+        - uri: '/protect/'
+          uritype: prefix
+          type: valid
+          validators: [ testSecret ]
+          onfalse: reject
+        - uri: '/check/'
+          uritype: prefix
+          type: valid
+          validators: [ testBasicList ]
+          onfalse: reject

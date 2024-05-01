@@ -1,7 +1,7 @@
 import express from 'express';
 import bodyParser from 'body-parser';
 import { Buffer } from "buffer";
-
+import { ConfigApi } from './api/configApi';
 import { RequestContext } from './model/RequestContext';
 import { Rule } from './model/Rule';
 import { Validator } from './model/Validator';
@@ -24,6 +24,7 @@ import { VERSION } from './version';
 // we need access to kubernetes for reading configmaps
 import * as k8s from '@kubernetes/client-node';
 import { CoreV1Api } from '@kubernetes/client-node';
+import { Ruleset } from './model/Ruleset';
 
 
 const app = express();
@@ -46,6 +47,8 @@ var promValidMetric:Counter;
 var env:Environment = {
   obkaName: '',
   obkaNamespace:'',
+  obkaApi:false,
+  obkaConsole:false,
   obkaPrometheus:false,
   obkaValidators:new Map(),
   obkaRulesets:new Map()
@@ -58,14 +61,16 @@ enum NextAction {
 }
 
 async function validateRule(rule:Rule, context:RequestContext):Promise<boolean> {
-  var validatorsArray=env.obkaValidators.get(env.obkaName) as Map<string, Validator>;
+  //var validatorsArray=env.obkaValidators.get(env.obkaName) as Map<string, Validator>;
   var validatorsList:Map<string, Validator>=new Map();
 
   // si hay una lista especifica de validadores la preparamos, si no usamos todos los validadores definidos en el YAML
   if (rule.validators) {
     for (const v of rule.validators) {
-      if (env.obkaValidators.get(env.obkaName)?.get(v) as Validator!==undefined) {
-        validatorsList.set (v, env.obkaValidators.get(env.obkaName)?.get(v) as Validator);
+      //if (env.obkaValidators.get(env.obkaName)?.get(v) as Validator!==undefined) {
+    if (env.obkaValidators.get(v) as Validator!==undefined) {
+        //validatorsList.set (v, env.obkaValidators.get(env.obkaName)?.get(v) as Validator);
+        validatorsList.set (v, env.obkaValidators.get(v) as Validator);
       }
       else {
         log(3,"Unknown validator: "+v);
@@ -73,7 +78,8 @@ async function validateRule(rule:Rule, context:RequestContext):Promise<boolean> 
     }
   }
   else {
-    validatorsList=validatorsArray;
+    //validatorsList=validatorsArray;
+    validatorsList=env.obkaValidators;
   }
 
   log(4,"Validators list to use for rule");
@@ -91,9 +97,11 @@ async function validateRule(rule:Rule, context:RequestContext):Promise<boolean> 
 
     log(5,"Test 'valid' ruletype with validator");
     log(5,validator);
-    var v = env.obkaValidators.get(env.obkaName)?.get(validator.name)?.decoder;
+    //var v = env.obkaValidators.get(env.obkaName)?.get(validator.name)?.decoder;
+    var v = env.obkaValidators.get(validator.name)?.decoder;
     if (v===undefined) {
-      log(0,`Validator does not exist (undefined): ${env.obkaName}/${validator.name}`);
+      //log(0,`Validator does not exist (undefined): ${env.obkaName}/${validator.name}`);
+      log(0,`Validator does not exist (undefined): ${validator.name}`);
       continue;
     }
 
@@ -317,64 +325,117 @@ async function decideNext(r:Rule, context:RequestContext):Promise<NextAction> {
 }
 
 async function validateRequest (context:RequestContext):Promise<boolean> {
-  //search for 'prefix' rule uri
-  log(2,"Search 'prefix' uri: "+context.uri);
-  for (const r of context.ruleset as Array<Rule>) {
-    if (r.uritype==="prefix" && context.uri.startsWith(r.uri)) {
-      log(3,"Test "+context.uri+" prefix")
-      //if (await validateRule(r,context)) return true;
-      switch (await decideNext(r,context)) {
-        case NextAction.FALSE:
-          return false;
-        case NextAction.TRUE:
-          return true;
-        case NextAction.CONTINUE:
-          continue;
-      }
-    }
-  }
-
-
-  // search for 'regex' rule uri
-  log(2,"Search 'regex' uri: "+context.uri);
-  // for-of is used beacouse fo async fuction sinside 'forEach' or 'some'
-  for (const r of context.ruleset as Array<Rule>) {
-    if (r.uritype==="regex") {
-      log(3,"Test "+r.uri);
-      var regex=new RegExp(r.uri,'g');
-      log(3,"Test: "+context.uri + " = "+ r.uri);
-      log(3,"Matches: "+Array.from(context.uri.matchAll(regex)).length);
-      if (Array.from(context.uri.matchAll(regex)).length>0) {
-        switch (await decideNext(r,context)) {
-          case NextAction.FALSE:
-            return false;
-          case NextAction.TRUE:
-            return true;
-          case NextAction.CONTINUE:
-            continue;
+  //Firstly we process all 'prefix' type rules
+  log(2,"Search 'prefix' uri: "+context.requestUri);
+  for (const r of context.rules as Array<Rule>) {
+    // if (r.uritype==="prefix" && context.requestUri.startsWith(r.uri)) {
+    //   r.totalExecuted++;
+    //   log(3,"Test "+context.requestUri+" prefix")
+    //   //if (await validateRule(r,context)) return true;
+    //   switch (await decideNext(r,context)) {
+    //     case NextAction.FALSE:
+    //       return false;
+    //     case NextAction.TRUE:
+    //       r.totalValid++;
+    //       return true;
+    //     case NextAction.CONTINUE:
+    //       r.totalValid++;
+    //       continue;
+    //   }
+    // }
+    if (r.uritype==="prefix") {
+      for (var ruleUri of r.uris) {
+        if (context.requestUri.startsWith(ruleUri)) {
+          r.totalExecuted++;
+          log(3, `Test ${context.requestUri} against prefix ruleUri: ${ruleUri}`)
+          switch (await decideNext(r,context)) {
+            case NextAction.FALSE:
+              return false;
+            case NextAction.TRUE:
+              r.totalValid++;
+              return true;
+            case NextAction.CONTINUE:
+              r.totalValid++;
+              continue;
+          }
         }
       }
     }
   }
 
 
-  // search for 'exact' rule uri
-  log(2,"Search 'exact' uri: "+context.uri);
-  for (const r of context.ruleset as Array<Rule>) {
-    if (r.uritype==="exact" && r.uri===context.uri) {
-      log(3,"Test "+context.uri+" exact")
-      switch (await decideNext(r,context)) {
-        case NextAction.FALSE:
-          return false;
-        case NextAction.TRUE:
-          return true;
-        case NextAction.CONTINUE:
-          continue;
+  // then we process all 'regex' type rules
+  log(2,"Search 'regex' uri: "+context.requestUri);
+  // for-of is used beacause fo async fuctions inside 'forEach' or 'some'
+  for (const r of context.rules as Array<Rule>) {
+    // if (r.uritype==="regex") {
+    //   log(3,"Test "+r.uri);
+    //   var regex=new RegExp(r.uri,'g');
+    //   log(3,"Test: "+context.requestUri + " = "+ r.uri);
+    //   log(3,"Matches: "+Array.from(context.requestUri.matchAll(regex)).length);
+    //   if (Array.from(context.requestUri.matchAll(regex)).length>0) {
+    //     r.totalExecuted++;
+    //     switch (await decideNext(r,context)) {
+    //       case NextAction.FALSE:
+    //         return false;
+    //       case NextAction.TRUE:
+    //         r.totalValid++;
+    //         return true;
+    //       case NextAction.CONTINUE:
+    //         r.totalValid++;
+    //         continue;
+    //     }
+    //   }
+    // }
+    if (r.uritype==="regex") {
+      for (var ruleUri of r.uris) {
+        log(3, `Test ${context.requestUri} against regex ruleUri: ${ruleUri}`)
+        var regex=new RegExp(ruleUri,'g');
+        log(3,"# matches: "+Array.from(context.requestUri.matchAll(regex)).length);
+        if (Array.from(context.requestUri.matchAll(regex)).length>0) {
+          r.totalExecuted++;
+          switch (await decideNext(r,context)) {
+            case NextAction.FALSE:
+              return false;
+            case NextAction.TRUE:
+              r.totalValid++;
+              return true;
+            case NextAction.CONTINUE:
+              r.totalValid++;
+              continue;
+          }
+        }
+  
       }
     }
+
   }
 
-  //+++ if no uri matches, we return false, what  in fact will return 401 to ingress, what in fact will return 401 to browser: even if the uri resource doesn't exist
+
+  // Finally we search for 'exact' rule uri
+  log(2,"Search 'exact' uri: "+context.requestUri);
+  for (const r of context.rules as Array<Rule>) {
+    if (r.uritype==="exact") {
+      for (var ruleUri of r.uris) {
+        log(3, `Test ${context.requestUri} against exact ruleUri: ${ruleUri}`)
+        if (context.requestUri===ruleUri) {
+          r.totalExecuted++;
+          switch (await decideNext(r,context)) {
+            case NextAction.FALSE:
+              return false;
+            case NextAction.TRUE:
+              r.totalValid++;
+              return true;
+            case NextAction.CONTINUE:
+              r.totalValid++;
+              continue;
+          }
+        }
+      }
+    } 
+  }
+
+  //+++ if no uri matches, we return false, what in fact will return 401 to ingress, what in fact will return 401 to browser: even if the uri resource doesn't exist
   return false;
 }
 
@@ -424,22 +485,63 @@ function readConfig() {
   env.obkaValidators=new Map();
   env.obkaRulesets=new Map();
 
-  // para poder tener shared authorizator, cargamos los rulesets con su nombre
-  env.obkaRulesets.set(env.obkaName,JSON.parse(process.env.OBKA_RULESET as string) as Array<Rule>);
-
-
   // load validators
   log(1,"Loading validators");
-  env.obkaValidators.set(env.obkaName,new Map());
+  //env.obkaValidators.set(env.obkaName,new Map());
   var arrayVals = JSON.parse(process.env.OBKA_VALIDATORS as string) as Array<any>;
   log(1,arrayVals);
-  arrayVals.forEach(v  => {
-    var type=Object.keys(v)[0];
-    var val:Validator = (v as any)[type];
+  arrayVals.forEach(validator  => {
+    var type = Object.keys(validator)[0];
+    var val:Validator = (validator as any)[type];
     val.type=type;
-    env.obkaValidators.get(env.obkaName)?.set(val.name, val);
+    log(1, `loading ${val.name}`);
+    //env.obkaValidators.get(env.obkaName)?.set(val.name, val);
+    env.obkaValidators.set(val.name, val);
   });
   console.log(env.obkaValidators);
+
+
+  // load rulesets
+  // env.obkaRulesets.set(env.obkaName,JSON.parse(process.env.OBKA_RULESETS as string) as Array<Rule>);
+  log(1,"Loading rulesets");
+  var arrayRulesets = JSON.parse(process.env.OBKA_RULESETS as string) as Array<Ruleset>;
+  log(1,arrayRulesets);
+  arrayRulesets.forEach(ruleset  => {
+    log(1, `loading ${ruleset.name}`);
+
+    // fix uri prefixes for ruleset: they must no end in '/'
+    for (var i=0;i<ruleset.uriPrefix.length;i++) {
+      while (ruleset.uriPrefix[i].endsWith('/')) ruleset.uriPrefix[i]=ruleset.uriPrefix[i].substring(0,ruleset.uriPrefix[i].length-1);
+    }
+    // remove duplicates using spread syntax and Set (Ser constructor removes duplicates)
+    ruleset.uriPrefix = [... new Set(ruleset.uriPrefix)];
+    
+    // fix uris in each ruleset rule, creating always a strin array mergin 'uri' with 'uris'
+    for (var r of ruleset.rules) {
+      log(2, `reviewing rule ${JSON.stringify(r)}`);
+      if (!r.uris) {
+        log(3, `creating uris array`);
+        r.uris=[];
+      }
+      if (r.uri!==null && r.uri!==undefined) {
+        log(3, `merging uri ${r.uri}`);
+        r.uris.push(r.uri);
+        r.uri=undefined;
+      }
+
+      // fix uri prefixes for rule: they must no end in '/'
+      for (var i=0;i<r.uris.length;i++) {
+        log(4, `Fixing uri ${r.uris[i]}`);
+        while (r.uris[i].endsWith('/')) r.uris[i]=r.uris[i].substring(0,r.uris[i].length-1);
+      }
+      // remove duplicates using spread syntax and Set (Ser constructor removes duplicates)
+      r.uris = [... new Set(r.uris)];
+    
+      log(2, `result rule ${JSON.stringify(r)}`);
+    }
+    env.obkaRulesets.set(ruleset.name, ruleset);
+  });
+  console.log(env.obkaRulesets);
 
 
   log(0,"===================================================================================");
@@ -456,11 +558,13 @@ function readConfig() {
 
 async function createAuthorizatorValidators(authorizator:string) {
   log(0,"Load validators");
-  var validatorNames = env.obkaValidators.get(authorizator)?.keys();
+  //var validatorNames = env.obkaValidators.get(authorizator)?.keys();
+  var validatorNames = env.obkaValidators.keys();
   if (validatorNames) {
     for (const valName of validatorNames) {
       log(1,"Loading validator "+valName);
-      var val = env.obkaValidators.get(authorizator)?.get(valName);
+      //var val = env.obkaValidators.get(authorizator)?.get(valName);
+      var val = env.obkaValidators.get(valName);
       if (val) {
         log(1,val);
         var decoder = await getValidator(authorizator,valName);
@@ -476,7 +580,8 @@ async function createAuthorizatorValidators(authorizator:string) {
 
 
 async function getValidator(authorizator:string,name:string) {
-  var validator=env.obkaValidators.get(authorizator)?.get(name);
+  //var validator=env.obkaValidators.get(authorizator)?.get(name);
+  var validator=env.obkaValidators.get(name);
   log(1, 'Obtaining validator: '+validator?.name+'/'+validator?.type);
   switch (validator?.type) {
     case 'azureB2c':
@@ -537,7 +642,7 @@ async function getValidator(authorizator:string,name:string) {
         }
         else {
           log(0,"No storeSecret provided");
-          return new NullValidator(false); 
+          return new NullValidator(validator, false); 
         }
       }
       else {
@@ -565,11 +670,11 @@ async function getValidator(authorizator:string,name:string) {
       }
       else {
         log(0,"No configMap provided");
-        return new NullValidator(false); 
+        return new NullValidator(validator, false); 
       }
     default:
       log(0, 'Unknown validator type: '+validator?.type);
-      return new NullValidator(false);
+      return new NullValidator((validator as Validator), false); 
   }
 }
 
@@ -579,12 +684,129 @@ function listen() {
     log(0,`Oberkorn Authorizator listening at port ${port}`);
   });
 
+  if (env.obkaConsole) {
+    log(0,'Configuring Console endpoint, access it at: /admin');
+
+    // serve admin app
+    app.use('/obka-admin/console', express.static('./dist/admin'))
+  }
+
+  if (env.obkaApi) {
+    log(0,'Configuring API endpoint, access it at: /api/...');
+    //serve api
+    //var router = express.Router();
+
+    var ca:ConfigApi = new ConfigApi(env);
+    app.use('/obka-admin/api', ca.routeApi);
+    
+    // router.route('/config')
+    //     .all(function (req, res, next) {
+    //       res.setHeader('Content-Type', 'application/json');
+    //       next();
+    //     })
+    //     .get(function (req, res, next) {
+    //       var resp:any={};
+    //       resp.name=env.obkaName;
+    //       resp.namespace=env.obkaNamespace;
+    //       resp.console=env.obkaConsole;
+    //       resp.api=env.obkaApi;
+    //       resp.prometheus=env.obkaPrometheus;
+    //       res.end(JSON.stringify(resp));
+    //     });
+    // router.route('/config/validators')
+    //     .all(function (req, res, next) {
+    //       res.setHeader('Content-Type', 'application/json');
+    //       next();
+    //     })
+    //     .get(function (req, res, next) {
+    //       var resp:any=[];
+    //       for (var val of env.obkaValidators.keys()) {
+    //         console.log(val);
+    //         resp.push(env.obkaValidators.get(val));
+    //       }
+    //       res.end(JSON.stringify(resp));
+    //     });
+    // router.route('/config/validators/:validatorName')
+    //     .all(function (req, res, next) {
+    //       res.setHeader('Content-Type', 'application/json');
+    //       next();
+    //     })
+    //     .get(function (req, res, next) {
+    //       var resp:any=env.obkaValidators.get(req.params.validatorName);
+    //       res.end(JSON.stringify(resp));
+    //     });
+    // router.route('/config/rulesets')
+    //     .all(function (req, res, next) {
+    //       res.setHeader('Content-Type', 'application/json');
+    //       next();
+    //     })
+    //     .get(function (req, res, next) {
+    //       var resp:any=[];
+    //       for (var rs of env.obkaRulesets.values()) {
+    //         console.log(rs);
+    //         resp.push(rs);
+    //       }
+    //       res.end(JSON.stringify(resp));
+    //     });
+    // router.route('/config/rulesets/:rulesetName')
+    //     .all(function (req, res, next) {
+    //       res.setHeader('Content-Type', 'application/json');
+    //       next();
+    //     })
+    //     .get(function (req, res, next) {
+    //       var resp:any=env.obkaRulesets.get(req.params.rulesetName);
+    //       res.end(JSON.stringify(resp));
+    //     });
+    // router.route('/stats/:validatorName')
+    //     .all(function (req, res, next) {
+    //       console.log(`Getting info for validator ${req.params.validatorName}`)
+    //       res.setHeader('Content-Type', 'application/json');
+    //       next();
+    //     })
+    //     .get(function (req, res, next) {
+    //       var resp:any={};
+    //       res.end(JSON.stringify(resp));
+    //     });
+    // router.route('/stats/general')
+    //     .all(function (req, res, next) {
+    //       // runs for all HTTP verbs first
+    //       // think of it as route specific middleware!
+    //       res.setHeader('Content-Type', 'application/json');
+    //       next();
+    //     })
+    //     .get(function (req, res, next) {
+    //       // res.json(req.user)
+    //       var resp:any={};
+    //       resp.totalRequests = totalRequests;
+    //       res.end(JSON.stringify(resp));
+    //     })
+    //     .put(function (req, res, next) {
+    //       // just an example of maybe updating the user
+    //       // req.user.name = req.params.name
+    //       // // save user ... etc
+    //       // res.json(req.user)
+    //       res.status(405).send('Not allowed');
+    //     })
+    //     .post(function (req, res, next) {
+    //       //next(new Error('not implemented'))
+    //       res.status(405).send('Not allowed');
+    //     })
+    //     .delete(function (req, res, next) {
+    //       //next(new Error('not implemented'))
+    //       res.status(405).send('Not allowed');
+    //     });
+    // app.use('/api', router);
+  }
+
+
+  // serve health endpoint
   app.get('/', (req, res) => {
     log(1,req.url);
-    res.status(200).send('**************************************************\n* Oberkorn Authorizator running at ' + Date.now().toString()+" *\n**************************************************\n");
+    res.status(200).send('<blockquote><pre>**************************************************<br/>* Oberkorn Authorizator running at ' + Date.now() + " *<br/>**************************************************</pre></blockquote>");
   });
 
 
+  // serve prometheus data
   if (env.obkaPrometheus) {
     log(0,'Configuring Prometheus endpoint');
     promRequestsMetric = new Counter ({
@@ -605,34 +827,64 @@ function listen() {
   }
 
 
+  // serve authrozation requests
   app.get('/validate/*', async (req, res) => {
     log(1,"***************************************************************************************************************************************************************");
     log(1,Date.now().toString() + " "+req.url);
     
+    log(2,'===============================================');
     log(2,'Headers received');
     log(2,req.headers);
-    log(2,'================');
+    log(2,'===============================================');
 
     // extarct original uri, it depends on the ingress provider
     var originalUri = req.headers["x-original-uri"] as string;
     if (!originalUri) originalUri = req.headers["x-forwarded-uri"] as string;
-    log(2, 'originalUri: '+originalUri);
-    log(2, 'Authorization: '+req.headers["authorization"]);
+    log(2, `OriginalUri: ${originalUri} with authorization: ${req.headers["authorization"]}`);
 
-    if (req.url.startsWith("/validate/")) {
-      var obkaName:string = req.url.substring(10);
-      log(1,'obkaName: '+obkaName);
+    if (req.url.startsWith("/validate/")) {  //+++ this occurs always!!
+      // var obkaName:string = req.url.substring(10);
+      // log(1,'obkaName: '+obkaName);
 
       var authValue:string=req.headers["authorization"] as string;
       if (authValue && authValue.startsWith("Bearer ")) authValue=authValue.substring(7);
+      if (authValue && authValue.startsWith("Basic ")) authValue=authValue.substring(6);
 
+      // find ruleset to apply to this uri
+      var ruleset:Ruleset|undefined=undefined;
+      var localUri=undefined;
+      for (var rs of env.obkaRulesets.values()) {
+        for (var uriPrefix  of rs.uriPrefix) {
+          var i = uriPrefix.length;
+          if (originalUri.substring(0,i)===uriPrefix) {
+            ruleset=rs;
+            localUri=originalUri.substring(i);
+            log(3,`Found valid ruleset: ${rs.name} with uri prefix ${uriPrefix} for local uri '${localUri}'`);
+            break;
+          }
+        }
+        if (localUri!==undefined) break;
+      }
+
+
+      if (ruleset===undefined) {
+        log(1,`No ruleset found for uri ${originalUri}`);
+        res.status(401).send({ valid:false });
+        return;
+      }
+
+      // create context
+      while (localUri?.endsWith("/")) localUri=localUri?.substring(0,localUri.length-1);
       var rc:RequestContext={
-        ruleset: env.obkaRulesets.get(obkaName) as Array<Rule>,
-        uri: originalUri,
+        rules: (ruleset!==undefined)? ruleset.rules : [],
+        requestUri: (localUri as string),
         responseHeaders: new Map()
       };
+
       if (authValue) rc.token=authValue;
-      log(3,rc);
+      log(3,"===============================");
+      log(3,"RequestContext:");
+      log(3,JSON.stringify(rc));
 
       var start=new Date();
       log(2, "Start time: "+start.toString());
@@ -641,7 +893,7 @@ function listen() {
       log(2, "End time: "+end.toString());
       var millis = (end.getTime() - start.getTime());
       if (env.obkaPrometheus) promRequestsMetric.inc();
-      log(2, "Elpsed(ms): "+millis+"  ||  Count: "+(++totalRequests));
+      log(2,`Request: ${originalUri}  Elapsed(ms): ${millis}  Count: ${++totalRequests}`);
       if (isOk) {
         if (env.obkaPrometheus) promValidMetric.inc();
         res.status(200).send({ valid:true });
@@ -661,6 +913,8 @@ function listen() {
         return;
       }
     }
+    else if (req.url.startsWith("/admin/")) {
+    }
 
   });
 }
@@ -672,6 +926,8 @@ console.log('Oberkorn Authorizator is starting...');
 console.log(`Oberkorn Authorizator version is ${VERSION}`);
 if (process.env.OBKA_LOG_LEVEL!==undefined) logLevel= +process.env.OBKA_LOG_LEVEL;
 env.obkaPrometheus = (process.env.OBKA_PROMETHEUS==='true');
+env.obkaConsole = (process.env.OBKA_CONSOLE==='true');
+env.obkaApi = (process.env.OBKA_API==='true');
 console.log('Log level: '+logLevel);
 
 // filter log messages
