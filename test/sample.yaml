@@ -40,6 +40,7 @@ spec:
     replicas: 1
     prometheus: false
     console: true
+    api: true
     logLevel: 9
   ingress:
     name: ingress-jfvilas
@@ -68,7 +69,7 @@ spec:
             password: p2
   ruleset:
     - name: general
-      uriPrefix: [ '/favicon.ico', '/obka-admin'  ]
+      uriPrefix: [ '/favicon.ico', '/obk-authorizator' ]
       rules: 
         # unrestricted
         - uris: [ '' ]

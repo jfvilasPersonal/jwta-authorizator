@@ -29,7 +29,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const body_parser_1 = __importDefault(require("body-parser"));
 const buffer_1 = require("buffer");
-const configApi_1 = require("./api/configApi");
+const overviewApi_1 = require("./api/overviewApi");
 const AzureB2c_1 = require("./validators/AzureB2c");
 const Google_1 = require("./validators/Google");
 const AzureAd_1 = require("./validators/AzureAd");
@@ -40,14 +40,13 @@ const Custom_1 = require("./validators/Custom");
 const NullValidator_1 = require("./validators/NullValidator");
 const prom_client_1 = require("prom-client");
 const version_1 = require("./version");
-// we need access to kubernetes for reading configmaps
+// we need access to kubernetes cluster for reading configmaps
 const k8s = __importStar(require("@kubernetes/client-node"));
 const client_node_1 = require("@kubernetes/client-node");
 const app = (0, express_1.default)();
 app.use(body_parser_1.default.json());
 const port = 3000;
 var logLevel = 9;
-var totalRequests = 0;
 // access to kubernetes cluster
 const kc = new k8s.KubeConfig();
 kc.loadFromDefault();
@@ -59,10 +58,13 @@ var env = {
     obkaName: '',
     obkaNamespace: '',
     obkaApi: false,
-    obkaConsole: false,
     obkaPrometheus: false,
     obkaValidators: new Map(),
     obkaRulesets: new Map()
+};
+var status = {
+    totalRequests: 0,
+    totalMicros: 0
 };
 var NextAction;
 (function (NextAction) {
@@ -647,114 +649,11 @@ function listen() {
     app.listen(port, () => {
         log(0, `Oberkorn Authorizator listening at port ${port}`);
     });
-    if (env.obkaConsole) {
-        log(0, 'Configuring Console endpoint, access it at: /admin');
-        // serve admin app
-        app.use('/obka-admin/console', express_1.default.static('./dist/admin'));
-    }
     if (env.obkaApi) {
-        log(0, 'Configuring API endpoint, access it at: /api/...');
+        log(0, `API interface enabled. Configuring API endpoint at /obk-authorizator/${env.obkaName}/api...`);
         //serve api
-        //var router = express.Router();
-        var ca = new configApi_1.ConfigApi(env);
-        app.use('/obka-admin/api', ca.routeApi);
-        // router.route('/config')
-        //     .all(function (req, res, next) {
-        //       res.setHeader('Content-Type', 'application/json');
-        //       next();
-        //     })
-        //     .get(function (req, res, next) {
-        //       var resp:any={};
-        //       resp.name=env.obkaName;
-        //       resp.namespace=env.obkaNamespace;
-        //       resp.console=env.obkaConsole;
-        //       resp.api=env.obkaApi;
-        //       resp.prometheus=env.obkaPrometheus;
-        //       res.end(JSON.stringify(resp));
-        //     });
-        // router.route('/config/validators')
-        //     .all(function (req, res, next) {
-        //       res.setHeader('Content-Type', 'application/json');
-        //       next();
-        //     })
-        //     .get(function (req, res, next) {
-        //       var resp:any=[];
-        //       for (var val of env.obkaValidators.keys()) {
-        //         console.log(val);
-        //         resp.push(env.obkaValidators.get(val));
-        //       }
-        //       res.end(JSON.stringify(resp));
-        //     });
-        // router.route('/config/validators/:validatorName')
-        //     .all(function (req, res, next) {
-        //       res.setHeader('Content-Type', 'application/json');
-        //       next();
-        //     })
-        //     .get(function (req, res, next) {
-        //       var resp:any=env.obkaValidators.get(req.params.validatorName);
-        //       res.end(JSON.stringify(resp));
-        //     });
-        // router.route('/config/rulesets')
-        //     .all(function (req, res, next) {
-        //       res.setHeader('Content-Type', 'application/json');
-        //       next();
-        //     })
-        //     .get(function (req, res, next) {
-        //       var resp:any=[];
-        //       for (var rs of env.obkaRulesets.values()) {
-        //         console.log(rs);
-        //         resp.push(rs);
-        //       }
-        //       res.end(JSON.stringify(resp));
-        //     });
-        // router.route('/config/rulesets/:rulesetName')
-        //     .all(function (req, res, next) {
-        //       res.setHeader('Content-Type', 'application/json');
-        //       next();
-        //     })
-        //     .get(function (req, res, next) {
-        //       var resp:any=env.obkaRulesets.get(req.params.rulesetName);
-        //       res.end(JSON.stringify(resp));
-        //     });
-        // router.route('/stats/:validatorName')
-        //     .all(function (req, res, next) {
-        //       console.log(`Getting info for validator ${req.params.validatorName}`)
-        //       res.setHeader('Content-Type', 'application/json');
-        //       next();
-        //     })
-        //     .get(function (req, res, next) {
-        //       var resp:any={};
-        //       res.end(JSON.stringify(resp));
-        //     });
-        // router.route('/stats/general')
-        //     .all(function (req, res, next) {
-        //       // runs for all HTTP verbs first
-        //       // think of it as route specific middleware!
-        //       res.setHeader('Content-Type', 'application/json');
-        //       next();
-        //     })
-        //     .get(function (req, res, next) {
-        //       // res.json(req.user)
-        //       var resp:any={};
-        //       resp.totalRequests = totalRequests;
-        //       res.end(JSON.stringify(resp));
-        //     })
-        //     .put(function (req, res, next) {
-        //       // just an example of maybe updating the user
-        //       // req.user.name = req.params.name
-        //       // // save user ... etc
-        //       // res.json(req.user)
-        //       res.status(405).send('Not allowed');
-        //     })
-        //     .post(function (req, res, next) {
-        //       //next(new Error('not implemented'))
-        //       res.status(405).send('Not allowed');
-        //     })
-        //     .delete(function (req, res, next) {
-        //       //next(new Error('not implemented'))
-        //       res.status(405).send('Not allowed');
-        //     });
-        // app.use('/api', router);
+        var ca = new overviewApi_1.OverviewApi(env, status);
+        app.use(`/obk-authorizator/${env.obkaName}/api`, ca.routeApi);
     }
     // serve health endpoint
     app.get('/', (req, res) => {
@@ -834,15 +733,16 @@ function listen() {
             log(3, "===============================");
             log(3, "RequestContext:");
             log(3, JSON.stringify(rc));
-            var start = new Date();
+            var start = process.hrtime();
             log(2, "Start time: " + start.toString());
             var isOk = await validateRequest(rc);
-            var end = new Date();
+            var end = process.hrtime();
             log(2, "End time: " + end.toString());
-            var millis = (end.getTime() - start.getTime());
+            var micros = ((end[0] * 1000000 + end[1] / 1000) - (start[0] * 1000000 + start[1] / 1000));
             if (env.obkaPrometheus)
                 promRequestsMetric.inc();
-            log(2, `Request: ${originalUri}  Elapsed(ms): ${millis}  Count: ${++totalRequests}`);
+            log(2, `Request: ${originalUri}  Elapsed(us): ${micros}  Count: ${++status.totalRequests}`);
+            status.totalMicros += micros;
             if (isOk) {
                 if (env.obkaPrometheus)
                     promValidMetric.inc();
@@ -863,8 +763,6 @@ function listen() {
                 return;
             }
         }
-        else if (req.url.startsWith("/admin/")) {
-        }
     });
 }
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -873,7 +771,6 @@ console.log(`Oberkorn Authorizator version is ${version_1.VERSION}`);
 if (process.env.OBKA_LOG_LEVEL !== undefined)
     logLevel = +process.env.OBKA_LOG_LEVEL;
 env.obkaPrometheus = (process.env.OBKA_PROMETHEUS === 'true');
-env.obkaConsole = (process.env.OBKA_CONSOLE === 'true');
 env.obkaApi = (process.env.OBKA_API === 'true');
 console.log('Log level: ' + logLevel);
 // filter log messages
