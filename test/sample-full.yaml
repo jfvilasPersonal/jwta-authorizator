@@ -55,7 +55,7 @@ spec:
         iss: https://cognito-idp.us-east-1.amazonaws.com/us-east-1_upKkn5Olp
         #aud: nooooo
         verify: false
-  ruleset:
+  rulesets:
     name: app1
     uriPrefix: ''
     rules:

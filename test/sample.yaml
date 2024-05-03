@@ -39,7 +39,6 @@ spec:
   config:
     replicas: 1
     prometheus: false
-    console: true
     api: true
     logLevel: 9
   ingress:
@@ -67,7 +66,7 @@ spec:
             password: angel
           - name: u2
             password: p2
-  ruleset:
+  rulesets:
     - name: general
       uriPrefix: [ '/favicon.ico', '/obk-authorizator' ]
       rules: 

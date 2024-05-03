@@ -23,7 +23,7 @@ spec:
   validators:
     - google:
         name: testgoogle
-  ruleset:
+  rulesets:
     name: app1
     uriPrefix: ''
     rules:

@@ -70,7 +70,7 @@ spec:
         name: testcustom
         configMap: test-custom
         key: function
-  ruleset:
+  rulesets:
     name: app1
     uriPrefix: ''
     rules:
