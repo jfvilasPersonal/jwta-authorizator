@@ -599,7 +599,7 @@ async function getValidator(authorizator:string,name:string) {
     case 'keycloak':
       return new KeyCloak(validator);
     case 'basicAuth':
-      console.log(`basicAuth store type: ${validator.storeType}`);
+      log(1,`basicAuth store type: ${validator.storeType}`);
       var usersdb:any = {};
       if (validator.storeType==='secret') {
         if (validator.storeSecret!==undefined) {
@@ -661,13 +661,12 @@ async function getValidator(authorizator:string,name:string) {
       }
       return new BasicAuth(validator, usersdb);
     case 'custom':
-      log(0,"cm:"+validator.configMap);
+      log(0,"Custom validator configMap: "+validator.configMap);
       if (validator.configMap) {
         var content = await coreApi.readNamespacedConfigMap(validator.configMap,env.obkaNamespace);
         var data = content.body.data;
         if (data!==undefined) {
           var code=(data as any)[validator.key];
-          console.log(code);
           validator.code=code;
           return new Custom(validator);
         }
@@ -690,7 +689,7 @@ function listen() {
 
   if (env.obkaApi) {
     log(0,`API interface enabled. Configuring API endpoint at /obk-authorizator/${env.obkaName}/api...`);
-    //serve api
+    //serve api requests
     var ca:OverviewApi = new OverviewApi(env, status);
     app.use(`/obk-authorizator/${env.obkaName}/api`, ca.routeApi);
   }
@@ -711,11 +710,6 @@ function listen() {
       help:'Total number of requests in one Oberkorn authorizator'
     });
     
-    promValidMetric = new Counter ({
-      name:'totalValidRequests',
-      help:'Total number of requests in one Oberkorn authorizator that has been answered positively (status code 200)'
-    });
-  
     app.get('/metrics', async (req, res) => {
       log(1,req.url);
       res.set('Content-Type', register.contentType);
@@ -740,14 +734,11 @@ function listen() {
     log(2, `OriginalUri: ${originalUri} with authorization: ${req.headers["authorization"]}`);
 
     if (req.url.startsWith("/validate/")) {  //+++ this occurs always!!
-      // var obkaName:string = req.url.substring(10);
-      // log(1,'obkaName: '+obkaName);
-
       var authValue:string=req.headers["authorization"] as string;
       if (authValue && authValue.startsWith("Bearer ")) authValue=authValue.substring(7);
       if (authValue && authValue.startsWith("Basic ")) authValue=authValue.substring(6);
 
-      // find ruleset to apply to this uri
+      // find ruleset to apply to requested uri
       var ruleset:Ruleset|undefined=undefined;
       var localUri=undefined;
       for (var rs of env.obkaRulesets.values()) {
@@ -801,8 +792,6 @@ function listen() {
       else {
         if (rc.responseHeaders!==null) {
           rc.responseHeaders?.forEach( (v:string, k:string) => {
-            console.log(k);
-            console.log(v);
             res.set(k,v);
           });
         }
