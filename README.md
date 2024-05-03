@@ -50,11 +50,11 @@ Follow these simple steps to have your Oberkorn authorizator created and deploye
       - name: general
         uriPrefix: [ '' ]
         rules:
-          # all resurces under /public can be accessed (access is unrestricted)
+          # all resources under /public can be accessed (access is unrestricted)
           - uri: "/public/"
             uritype: "prefix"
             type: "unrestricted"
-          # all resurces under /private require a valid JWT token emitted by the cognito validator
+          # all resources under /private require a valid JWT token emitted by the cognito validator
           - uri: "/private/"
             uritype: "prefix"
             type: "valid"
