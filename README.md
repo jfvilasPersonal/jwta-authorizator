@@ -46,15 +46,18 @@ Follow these simple steps to have your Oberkorn authorizator created and deploye
           name: cognito-validator
           region: eu-west-1
           userpool: eu-west-1_abcdefg
-    ruleset:
-      # all resurces under /public can be accessed (access is unrestricted)
-      - uri: "/public/"
-        uritype: "prefix"
-        type: "unrestricted"
-      # all resurces under /private require a valid JWT token emitted by the cognito validator
-      - uri: "/private/"
-        uritype: "prefix"
-        type: "valid"
+    rulesets:
+      - name: general
+        uriPrefix: [ '' ]
+        rules:
+          # all resurces under /public can be accessed (access is unrestricted)
+          - uri: "/public/"
+            uritype: "prefix"
+            type: "unrestricted"
+          # all resurces under /private require a valid JWT token emitted by the cognito validator
+          - uri: "/private/"
+            uritype: "prefix"
+            type: "valid"
 ```
 
   2. Apply the YAML
