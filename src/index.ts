@@ -688,10 +688,10 @@ function listen() {
   });
 
   if (env.obkaApi) {
-    log(0,`API interface enabled. Configuring API endpoint at /obk-authorizator/${env.obkaName}/api...`);
+    log(0,`API interface enabled. Configuring API endpoint at /obk-authorizator/${env.obkaNamespace}/${env.obkaName}/api...`);
     //serve api requests
     var ca:OverviewApi = new OverviewApi(env, status);
-    app.use(`/obk-authorizator/${env.obkaName}/api`, ca.routeApi);
+    app.use(`/obk-authorizator/${env.obkaNamespace}/${env.obkaName}/api`, ca.routeApi);
   }
 
 

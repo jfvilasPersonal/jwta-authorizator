@@ -649,10 +649,10 @@ function listen() {
         log(0, `Oberkorn Authorizator listening at port ${port}`);
     });
     if (env.obkaApi) {
-        log(0, `API interface enabled. Configuring API endpoint at /obk-authorizator/${env.obkaName}/api...`);
+        log(0, `API interface enabled. Configuring API endpoint at /obk-authorizator/${env.obkaNamespace}/${env.obkaName}/api...`);
         //serve api requests
         var ca = new overviewApi_1.OverviewApi(env, status);
-        app.use(`/obk-authorizator/${env.obkaName}/api`, ca.routeApi);
+        app.use(`/obk-authorizator/${env.obkaNamespace}/${env.obkaName}/api`, ca.routeApi);
     }
     // serve health endpoint
     app.get('/', (req, res) => {

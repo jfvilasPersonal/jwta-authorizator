@@ -13,51 +13,51 @@ export class OverviewApi {
     this.status=mainStatus;
 
     this.routeApi.route('/config')
-      .all(function (req, res, next) {
-        res.setHeader('Content-Type', 'application/json');
-        next();
-      })
-      .get( (req, res, next) => {
-        res.end(JSON.stringify(this.env));
+      // .all(function (req, res, next) {
+      //   res.setHeader('Content-Type', 'application/json');
+      //   next();
+      // })
+      .get( (req, res) => {
+        res.json(this.env);
       })
 
       this.routeApi.route('/status')
-      .all(function (req, res, next) {
-        res.setHeader('Content-Type', 'application/json');
-        next();
-      })
-      .get( (req, res, next) => {
-        res.end(JSON.stringify(this.status));
+      // .all(function (req, res, next) {
+      //   res.setHeader('Content-Type', 'application/json');
+      //   next();
+      // })
+      .get( (req, res) => {
+        res.json(this.status);
       });
 
       this.routeApi.route('/validators')
-      .all(function (req, res, next) {
-        res.setHeader('Content-Type', 'application/json');
-        next();
-      })
-      .get( (req, res, next) => {
+      // .all(function (req, res, next) {
+      //   res.setHeader('Content-Type', 'application/json');
+      //   next();
+      // })
+      .get( (req, res) => {
         var resp= [];
         if (this.env?.obkaValidators){
           for (var val of this.env?.obkaValidators.values()) {
             resp.push ({ name:val.name, validator:val});
           }
         }
-        res.end(JSON.stringify(resp));
+        res.json(resp);
       });
 
       this.routeApi.route('/rulesets')
-      .all(function (req, res, next) {
-        res.setHeader('Content-Type', 'application/json');
-        next();
-      })
-      .get( (req, res, next) => {
+      // .all(function (req, res, next) {
+      //   res.setHeader('Content-Type', 'application/json');
+      //   next();
+      // })
+      .get( (req, res) => {
         var resp= [];
         if (this.env?.obkaRulesets){
           for (var rs of this.env?.obkaRulesets.values()) {
             resp.push ({ name:rs.name, ruleset:rs});
           }
         }
-        res.end(JSON.stringify(resp));
+        res.json(resp);
       });
   }
 
