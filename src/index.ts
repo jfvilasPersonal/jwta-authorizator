@@ -718,7 +718,7 @@ function listen() {
   }
 
 
-  // serve authrozation requests
+  // serve authorization requests
   app.get('/validate/*', async (req, res) => {
     log(1,"***************************************************************************************************************************************************************");
     log(1,Date.now().toString() + " "+req.url);
