@@ -45,7 +45,7 @@ const k8s = __importStar(require("@kubernetes/client-node"));
 const client_node_1 = require("@kubernetes/client-node");
 const app = (0, express_1.default)();
 app.use(body_parser_1.default.json());
-const port = 3000;
+const port = 3882;
 var logLevel = 9;
 // access to kubernetes cluster
 const kc = new k8s.KubeConfig();
@@ -565,7 +565,7 @@ async function getValidator(authorizator, name) {
         case 'keycloak':
             return new KeyCloak_1.KeyCloak(validator);
         case 'basicAuth':
-            console.log(`basicAuth store type: ${validator.storeType}`);
+            log(1, `basicAuth store type: ${validator.storeType}`);
             var usersdb = {};
             if (validator.storeType === 'secret') {
                 if (validator.storeSecret !== undefined) {
@@ -625,13 +625,12 @@ async function getValidator(authorizator, name) {
             }
             return new BasicAuth_1.BasicAuth(validator, usersdb);
         case 'custom':
-            log(0, "cm:" + validator.configMap);
+            log(0, "Custom validator configMap: " + validator.configMap);
             if (validator.configMap) {
                 var content = await coreApi.readNamespacedConfigMap(validator.configMap, env.obkaNamespace);
                 var data = content.body.data;
                 if (data !== undefined) {
                     var code = data[validator.key];
-                    console.log(code);
                     validator.code = code;
                     return new Custom_1.Custom(validator);
                 }
@@ -651,7 +650,7 @@ function listen() {
     });
     if (env.obkaApi) {
         log(0, `API interface enabled. Configuring API endpoint at /obk-authorizator/${env.obkaName}/api...`);
-        //serve api
+        //serve api requests
         var ca = new overviewApi_1.OverviewApi(env, status);
         app.use(`/obk-authorizator/${env.obkaName}/api`, ca.routeApi);
     }
@@ -666,10 +665,6 @@ function listen() {
         promRequestsMetric = new prom_client_1.Counter({
             name: 'totalRequests',
             help: 'Total number of requests in one Oberkorn authorizator'
-        });
-        promValidMetric = new prom_client_1.Counter({
-            name: 'totalValidRequests',
-            help: 'Total number of requests in one Oberkorn authorizator that has been answered positively (status code 200)'
         });
         app.get('/metrics', async (req, res) => {
             log(1, req.url);
@@ -692,14 +687,12 @@ function listen() {
             originalUri = req.headers["x-forwarded-uri"];
         log(2, `OriginalUri: ${originalUri} with authorization: ${req.headers["authorization"]}`);
         if (req.url.startsWith("/validate/")) { //+++ this occurs always!!
-            // var obkaName:string = req.url.substring(10);
-            // log(1,'obkaName: '+obkaName);
             var authValue = req.headers["authorization"];
             if (authValue && authValue.startsWith("Bearer "))
                 authValue = authValue.substring(7);
             if (authValue && authValue.startsWith("Basic "))
                 authValue = authValue.substring(6);
-            // find ruleset to apply to this uri
+            // find ruleset to apply to requested uri
             var ruleset = undefined;
             var localUri = undefined;
             for (var rs of env.obkaRulesets.values()) {
@@ -753,8 +746,6 @@ function listen() {
             else {
                 if (rc.responseHeaders !== null) {
                     (_a = rc.responseHeaders) === null || _a === void 0 ? void 0 : _a.forEach((v, k) => {
-                        console.log(k);
-                        console.log(v);
                         res.set(k, v);
                     });
                 }

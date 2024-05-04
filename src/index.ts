@@ -30,7 +30,7 @@ import { Ruleset } from './model/Ruleset';
 
 const app = express();
 app.use(bodyParser.json());
-const port = 3000;
+const port = 3882;
 var logLevel=9;
 
 // access to kubernetes cluster
