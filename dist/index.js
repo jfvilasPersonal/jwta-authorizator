@@ -672,7 +672,7 @@ function listen() {
             res.end(await prom_client_1.register.metrics());
         });
     }
-    // serve authrozation requests
+    // serve authorization requests
     app.get('/validate/*', async (req, res) => {
         var _a;
         log(1, "***************************************************************************************************************************************************************");
