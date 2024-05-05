@@ -1,6 +1,6 @@
 import express from 'express';
 import bodyParser from 'body-parser';
-import { Buffer } from "buffer";
+//import { Buffer } from "buffer";
 import { OverviewApi } from './api/overviewApi';
 import { RequestContext } from './model/RequestContext';
 import { Rule } from './model/Rule';
@@ -590,91 +590,35 @@ async function getValidator(authorizator:string,name:string) {
   switch (validator?.type) {
     case 'azureB2c':
       return new AzureB2c(validator);
-    case 'google':
-      return new Google(validator);
+
     case 'azureAd':
       return new AzureAd(validator);
+
+    case 'google':
+      return new Google(validator);
+
     case 'cognito':
       return new Cognito(validator);
+
     case 'keycloak':
       return new KeyCloak(validator);
+
     case 'basicAuth':
       log(1,`basicAuth store type: ${validator.storeType}`);
-      var usersdb:any = {};
-      if (validator.storeType==='secret') {
-        if (validator.storeSecret!==undefined) {
-          var ct = await coreApi.readNamespacedSecret(validator.storeSecret,env.obkaNamespace);
-          var secretData = ct.body.data;
-          var secretName = validator.storeSecret;
-          var secret = {
-            metadata: {
-              name: validator.storeSecret,
-              namespace: env.obkaNamespace
-            },
-            data: {}
-          };
+      var basicAuthVal = new BasicAuth(validator, coreApi, env.obkaNamespace);
+      if (await basicAuthVal.init())
+        return basicAuthVal;
+      else
+        return new NullValidator(validator, false);
 
-          if (secretData===undefined) {
-            log(0,`No secret '${validator.storeSecret}' exists, we create an empty 'userdb' secret`);
-            (secret as any).data[validator.storeKey] = 'e30=';   // {} in base64
-            await coreApi.createNamespacedSecret(env.obkaNamespace, secret);
-          }
-          else {
-            log(0,`Secret found, looking for key '${validator.storeKey}' in secret`);
-            var value = Buffer.from(secretData[validator.storeKey], 'base64').toString('utf-8');
-            usersdb=JSON.parse(value);
-            log(1,`Read usersdb ${JSON.stringify(usersdb)}`);
-          }
-
-          if (validator.users!==undefined) {
-            log(1,'Copying new users to usersdb');
-            for (var user of validator.users) {
-              log(1, user);
-              var u:any=user;
-              if (usersdb[u.name]===undefined) {
-                log(1, `Added ${u.name}`);
-                usersdb[u.name]=u.password;
-              }
-              else {
-                log(1, `Skipped ${u.name}`);
-              }
-            }
-            log(1, `Updating usersdb in secret`);
-            (secret as any).data[validator.storeKey] = Buffer.from(JSON.stringify(usersdb), 'utf-8').toString('base64');
-            await coreApi.replaceNamespacedSecret(secretName,env.obkaNamespace, secret);
-          }
-        }
-        else {
-          log(0,"No storeSecret provided");
-          return new NullValidator(validator, false); 
-        }
-      }
-      else {
-        // we are working on an 'inline' validator
-        // we read all users from validator and store them in a simpler format:  { 'user1': 'password1' , 'user2': 'password2'... }
-        if (validator.users) {
-          for (var usr of validator.users) {
-            log(1, `Adding user ${JSON.stringify(usr)}`);
-            usersdb[(usr as any).name] = (usr as any).password;
-          }
-        }
-      }
-      return new BasicAuth(validator, usersdb);
     case 'custom':
       log(0,"Custom validator configMap: "+validator.configMap);
-      if (validator.configMap) {
-        var content = await coreApi.readNamespacedConfigMap(validator.configMap,env.obkaNamespace);
-        var data = content.body.data;
-        if (data!==undefined) {
-          var code=(data as any)[validator.key];
-          validator.code=code;
-          return new Custom(validator);
-        }
-      }
-      else {
-        log(0,"No configMap provided");
-        return new NullValidator(validator, false); 
-      }
+      var customVal = new Custom(validator, coreApi, env.obkaNamespace);
+      if (await customVal.init())
+        return customVal;
+      else
+        return new NullValidator(validator, false);
+
     default:
       log(0, 'Unknown validator type: '+validator?.type);
       return new NullValidator((validator as Validator), false); 
@@ -687,19 +631,19 @@ function listen() {
     log(0,`Oberkorn Authorizator listening at port ${port}`);
   });
 
+  // serve health endpoint
+  app.get('/', (req, res) => {
+    log(1,req.url);
+    res.status(200).send('<blockquote><pre>**************************************************<br/>* Oberkorn Authorizator running at ' + Date.now() + " *<br/>**************************************************</pre></blockquote>");
+  });
+
+
   if (env.obkaApi) {
     log(0,`API interface enabled. Configuring API endpoint at /obk-authorizator/${env.obkaNamespace}/${env.obkaName}/api...`);
     //serve api requests
     var ca:OverviewApi = new OverviewApi(env, status);
     app.use(`/obk-authorizator/${env.obkaNamespace}/${env.obkaName}/api`, ca.routeApi);
   }
-
-
-  // serve health endpoint
-  app.get('/', (req, res) => {
-    log(1,req.url);
-    res.status(200).send('<blockquote><pre>**************************************************<br/>* Oberkorn Authorizator running at ' + Date.now() + " *<br/>**************************************************</pre></blockquote>");
-  });
 
 
   // serve prometheus data
@@ -733,72 +677,70 @@ function listen() {
     if (!originalUri) originalUri = req.headers["x-forwarded-uri"] as string;
     log(2, `OriginalUri: ${originalUri} with authorization: ${req.headers["authorization"]}`);
 
-    if (req.url.startsWith("/validate/")) {  //+++ this occurs always!!
-      var authValue:string=req.headers["authorization"] as string;
-      if (authValue && authValue.startsWith("Bearer ")) authValue=authValue.substring(7);
-      if (authValue && authValue.startsWith("Basic ")) authValue=authValue.substring(6);
+    var authValue:string=req.headers["authorization"] as string;
+    if (authValue && authValue.startsWith("Bearer ")) authValue=authValue.substring(7);
+    if (authValue && authValue.startsWith("Basic ")) authValue=authValue.substring(6);
 
-      // find ruleset to apply to requested uri
-      var ruleset:Ruleset|undefined=undefined;
-      var localUri=undefined;
-      for (var rs of env.obkaRulesets.values()) {
-        for (var uriPrefix  of rs.uriPrefix) {
-          var i = uriPrefix.length;
-          if (originalUri.substring(0,i)===uriPrefix) {
-            ruleset=rs;
-            localUri=originalUri.substring(i);
-            log(3,`Found valid ruleset: ${rs.name} with uri prefix ${uriPrefix} for local uri '${localUri}'`);
-            break;
-          }
+    // find ruleset to apply to requested uri
+    var ruleset:Ruleset|undefined=undefined;
+    var localUri=undefined;
+    for (var rs of env.obkaRulesets.values()) {
+      for (var uriPrefix  of rs.uriPrefix) {
+        var i = uriPrefix.length;
+        if (originalUri.substring(0,i)===uriPrefix) {
+          ruleset=rs;
+          localUri=originalUri.substring(i);
+          log(3,`Found valid ruleset: ${rs.name} with uri prefix ${uriPrefix} for local uri '${localUri}'`);
+          break;
         }
-        if (localUri!==undefined) break;
       }
+      if (localUri!==undefined) break;
+    }
 
 
-      if (ruleset===undefined) {
-        log(1,`No ruleset found for uri ${originalUri}`);
-        res.status(401).send({ valid:false });
-        return;
+    if (ruleset===undefined) {
+      log(1,`No ruleset found for uri ${originalUri}`);
+      res.status(401).send({ valid:false });
+      return;
+    }
+
+    // create context
+    while (localUri?.endsWith("/")) localUri=localUri?.substring(0,localUri.length-1);
+    var rc:RequestContext={
+      rules: (ruleset!==undefined)? ruleset.rules : [],
+      requestUri: (localUri as string),
+      responseHeaders: new Map()
+    };
+
+    if (authValue) rc.token=authValue;
+    log(3,"===============================");
+    log(3,"RequestContext:");
+    log(3,JSON.stringify(rc));
+
+    var start=process.hrtime()
+    log(2, "Start time: "+start.toString());
+    var isOk = await validateRequest(rc);
+    var end=process.hrtime()
+    log(2, "End time: "+end.toString());
+    var micros = ( (end[0] * 1000000 + end[1] / 1000) - (start[0] * 1000000 + start[1] / 1000));
+    if (env.obkaPrometheus) promRequestsMetric.inc();
+    log(2,`Request: ${originalUri}  Elapsed(us): ${micros}  Count: ${++status.totalRequests}`);
+    status.totalMicros+=micros;
+    if (isOk) {
+      if (env.obkaPrometheus) promValidMetric.inc();
+      res.status(200).send({ valid:true });
+      log(3,{ valid:true });
+      return;
+    }
+    else {
+      if (rc.responseHeaders!==null) {
+        rc.responseHeaders?.forEach( (v:string, k:string) => {
+          res.set(k,v);
+        });
       }
-
-      // create context
-      while (localUri?.endsWith("/")) localUri=localUri?.substring(0,localUri.length-1);
-      var rc:RequestContext={
-        rules: (ruleset!==undefined)? ruleset.rules : [],
-        requestUri: (localUri as string),
-        responseHeaders: new Map()
-      };
-
-      if (authValue) rc.token=authValue;
-      log(3,"===============================");
-      log(3,"RequestContext:");
-      log(3,JSON.stringify(rc));
-
-      var start=process.hrtime()
-      log(2, "Start time: "+start.toString());
-      var isOk = await validateRequest(rc);
-      var end=process.hrtime()
-      log(2, "End time: "+end.toString());
-      var micros = ( (end[0] * 1000000 + end[1] / 1000) - (start[0] * 1000000 + start[1] / 1000));
-      if (env.obkaPrometheus) promRequestsMetric.inc();
-      log(2,`Request: ${originalUri}  Elapsed(us): ${micros}  Count: ${++status.totalRequests}`);
-      status.totalMicros+=micros;
-      if (isOk) {
-        if (env.obkaPrometheus) promValidMetric.inc();
-        res.status(200).send({ valid:true });
-        log(3,{ valid:true });
-        return;
-      }
-      else {
-        if (rc.responseHeaders!==null) {
-          rc.responseHeaders?.forEach( (v:string, k:string) => {
-            res.set(k,v);
-          });
-        }
-        res.status(401).send({ valid:false });
-        log(3,{ valid:false });
-        return;
-      }
+      res.status(401).send({ valid:false });
+      log(3,{ valid:false });
+      return;
     }
 
   });

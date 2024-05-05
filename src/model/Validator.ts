@@ -30,6 +30,6 @@ export type Validator = {
     // Custom
     code: string,
     configMap: string,
-    key: string
+    configMapkey: string
     
 }
