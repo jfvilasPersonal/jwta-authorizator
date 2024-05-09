@@ -1,9 +1,9 @@
 import { RequestContext } from '../model/RequestContext';
 import { Validator } from '../model/Validator';
-import { Basic } from './Basic';
+import { BasicDecoder } from './BasicDecoder';
 import { ITokenDecoder } from './ITokenDecoder'
 
-export class NullValidator extends Basic implements ITokenDecoder {
+export class NullValidator extends BasicDecoder implements ITokenDecoder {
   returnValue=false;
 
   constructor (val:Validator, returnValue:boolean) {
@@ -14,6 +14,14 @@ export class NullValidator extends Basic implements ITokenDecoder {
 
   decodeAndValidateToken = async (context:RequestContext) => {
     this.totalRequests++;
+    if (this.returnValue) {
+      this.totalOkRequests++;
+      this.applyFilter(context,context.decoded.subject,'SigninOK');
+    }
+    else {
+      this.applyFilter(context,context.decoded.subject,'SigninError');
+    }
+
     context.validationStatus=this.returnValue;
   }
      

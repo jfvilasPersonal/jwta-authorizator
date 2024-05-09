@@ -1,9 +1,9 @@
 import axios from 'axios';
 import { Validator } from '../model/Validator';
 import { ITokenDecoder } from './ITokenDecoder';
-import { Basic } from './Basic';
+import { BasicDecoder } from './BasicDecoder';
 
-export class Google extends Basic implements ITokenDecoder {
+export class Google extends BasicDecoder implements ITokenDecoder {
 
   constructor (val:Validator) {
     super(val);

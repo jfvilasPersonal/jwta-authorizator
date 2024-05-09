@@ -1,10 +1,10 @@
 import { RequestContext } from '../model/RequestContext';
 import { Validator } from '../model/Validator';
 import { ITokenDecoder } from './ITokenDecoder';
-import { Basic } from './Basic';
+import { BasicDecoder } from './BasicDecoder';
 import * as k8s from '@kubernetes/client-node';
 
-export class Custom extends Basic implements ITokenDecoder {
+export class Custom extends BasicDecoder implements ITokenDecoder {
   validFunction:boolean = false;
   namespace:string='';
   configMap?:string;
@@ -83,7 +83,11 @@ export class Custom extends Basic implements ITokenDecoder {
                 token: context.token
               };
               context.decoded = this.authorize(requestData);
-              if (context.decoded) context.validationStatus=true;
+              if (context.decoded) {
+                this.totalOkRequests++;
+                this.applyFilter(context,context.decoded.subject,'SigninOK');
+                context.validationStatus=true;
+              }
             }
             catch (ex) {
               context.validationError="Error invoking authorize function"+(ex as string);

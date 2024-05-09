@@ -1,10 +1,10 @@
 import { RequestContext } from '../model/RequestContext';
 import { Validator } from '../model/Validator';
 import { ITokenDecoder } from './ITokenDecoder';
-import { Basic } from './Basic';
+import { BasicDecoder } from './BasicDecoder';
 import * as k8s from '@kubernetes/client-node';
 
-export class BasicAuth extends Basic implements ITokenDecoder {
+export class BasicAuth extends BasicDecoder implements ITokenDecoder {
   usersdb: any = {};
   realm?: string;
   namespace:string='';
@@ -29,7 +29,7 @@ export class BasicAuth extends Basic implements ITokenDecoder {
     }
   }
 
-  init = async () => {
+  init = async () => {   
     if (this.storeType==='secret') {
       if (this.storeSecret!==undefined) {
         var ct:any = await this.coreApi?.readNamespacedSecret(this.storeSecret,this.namespace);
@@ -128,10 +128,9 @@ export class BasicAuth extends Basic implements ITokenDecoder {
         console.log('stored: '+this.usersdb[username]);
         var blankPos=password.indexOf(' ');
         if (blankPos>=0) {
+          // it's a change password request (password field contains oldPassword, blankSpace, newPassword)
           console.log("ChangePassword Request");
           var oldPassword=password.substring(0,i);
-          //var newPassword=password.substring(i+1);
-          // it's a change password request (password field contains oldPassword, blankSpace, newPassword)
           if (this.usersdb[username]===oldPassword) {
             // this is the first step for changing password: we receive the old+blank+new password form the user but in the db is stored just the old password
             // so we update the password in the db (with old and new) and request a second step
@@ -139,10 +138,10 @@ export class BasicAuth extends Basic implements ITokenDecoder {
             console.log('store: '+password);
             this.usersdb[username]=password;
             context.responseHeaders?.set("WWW-Authenticate",`Basic realm="${this.realm}"`);
+            this.applyFilter(context,username,'ChangePasswordStep1');
           }
           else {
             // if recieve old+blank+new and stored is old+bank+new (and they match) we make no changes and keep going
-            // change request but old passwor dis incorrect
             if (this.usersdb[username]===password) {
               console.log('keep going');
               context.responseHeaders?.set("WWW-Authenticate",`Basic realm="${this.realm}"`);
@@ -150,6 +149,7 @@ export class BasicAuth extends Basic implements ITokenDecoder {
             else {
               console.log("ChangeRequest with invalid oldpassword");
               context.responseHeaders?.set("WWW-Authenticate",`Basic realm="${this.realm}"`);
+              this.applyFilter(context,username,'ChangePasswordInvalidPassword');
             }
           }
         }
@@ -159,7 +159,8 @@ export class BasicAuth extends Basic implements ITokenDecoder {
           if (this.usersdb[username]===password) {
             console.log("Found: "+username);
             context.decoded=username;
-            context.validationStatus=true; 
+            context.validationStatus=true;
+            this.applyFilter(context,username,'SigninOK');
           }
           else {
             console.log('password do not match');
@@ -167,6 +168,7 @@ export class BasicAuth extends Basic implements ITokenDecoder {
             if (storedPassword===undefined) {
               console.log("User NotFound");
               context.responseHeaders?.set("WWW-Authenticate",`Basic realm="${this.realm}"`);
+              this.applyFilter(context,username,'UnknownUser');
             }
             else {
               var i = storedPassword.indexOf(' ');
@@ -174,6 +176,7 @@ export class BasicAuth extends Basic implements ITokenDecoder {
                 // it is a signin where the user entered an invalid password
                 console.log("Invalid Password");
                 context.responseHeaders?.set("WWW-Authenticate",`Basic realm="${this.realm}"`);
+                this.applyFilter(context,username,'InvalidPassword');
               }
               else {
                 console.log('second step');
@@ -186,12 +189,15 @@ export class BasicAuth extends Basic implements ITokenDecoder {
                   this.usersdb[username]=newPassword;
                   context.decoded=username;
                   context.validationStatus=true; 
+                  //we only update kubernetes secret if password change is ok
                   this.saveUsersDb();
+                  this.applyFilter(context,username,'PasswordUpdatedOK');
                 }
                 else {
                   // second step change-password is not correct, we restore the old password
                   console.log('restore old password to: '+oldPassword);
                   this.usersdb[username]=oldPassword;
+                  this.applyFilter(context,username,'InvalidNewPassword');
                 }
               }
             }

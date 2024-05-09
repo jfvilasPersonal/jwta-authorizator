@@ -3,33 +3,50 @@ import jwt from 'jsonwebtoken';
 import jkwsClient from 'jwks-rsa';
 import { RequestContext } from '../model/RequestContext';
 import { Validator } from '../model/Validator'
+import { Filter } from '../model/Filter';
+import { ITokenDecoder } from './ITokenDecoder';
 
-export class Basic {
+export class BasicDecoder implements ITokenDecoder{
   name!:string;
   type!:string;
-  client:any;
+  //client:any; //+++ ¿?
   jwksUri!:string;
   cachedSigningKeys:Map<string,string> = new Map();
   iss!:string;
   aud!:string;
   verify:boolean=true;
   totalRequests:number=0;
+  totalOkRequests:number=0;
+  filter:Filter;
   
   constructor (val:Validator) {
+    console.log('ctor.name:'+val.name);
+    console.log('ctor.type:'+val.type);
     this.name=val.name;
     this.type=val.type;
     if (val.aud) this.aud=val.aud;
     if (val.iss) this.iss=val.iss;
     this.verify=val.verify;
+    this.filter=new Filter();
+  }
+
+  public applyFilter(rc:RequestContext, sub?:string, action?:string) {
+    if (this.filter) {
+      if (sub!==undefined && this.filter.sub===sub) {
+        rc.action=action;
+        this.filter.events.push(rc);
+      }
+    }
   }
 
   public async cacheKeys() {
     console.log(`Downloading & caching keys for validator ${this.type}/${this.name}`);
-    this.client = jkwsClient({ jwksUri: this.jwksUri })
+    //this.client = jkwsClient({ jwksUri: this.jwksUri })
+    var client = jkwsClient({ jwksUri: this.jwksUri })
     var response = await axios.get(this.jwksUri);
 
     for (var k of response.data.keys) {
-      this.client.getSigningKey(k.kid, async (err:any, key:any) => {
+      client.getSigningKey(k.kid, async (err:any, key:any) => {
         if (key) this.cachedSigningKeys.set(key.kid,key.getPublicKey());
       });
     }
@@ -96,13 +113,9 @@ export class Basic {
   } 
 
 
-  decodeAndValidateToken = async (context:RequestContext) => {
+  public decodeAndValidateToken = async (context:RequestContext) => {
     try {
       this.totalRequests++;
-      const options = {
-        //audience: [applicationId],
-        //issuer: [issuerUri]
-      };
   
       if (!context.token) {
         console.log("***b2c notoken***");
@@ -111,36 +124,42 @@ export class Basic {
       if (!context.validationStatus) {
         if (this.verify) {
           const decoded = await new Promise((resolve, reject) => {
-            jwt.verify(context.token as string, this.getKey, options, (err, decoded) => {
+            jwt.verify(context.token as string, this.getKey, {}, (err, decoded) => {
               if (err) {
                 console.log("vererr");
                 console.log(err);
+                this.applyFilter(context,undefined,'VerifyError');
                 reject(err);
               }
               else {
                 console.log("verok");
                 console.log(decoded);
+                this.totalOkRequests++;
                 resolve(decoded);
               }
             });
           });
           context.decoded=(decoded as {});
           context.validationStatus=true; 
+          this.totalOkRequests++;
+          this.applyFilter(context,context.decoded.subject,'SigninOK');
         }
         else {
           try {
-            context.decoded = jwt.decode(context.token,options) as {};
+            context.decoded = jwt.decode(context.token,{}) as {};
             context.validationStatus=true; 
+            this.totalOkRequests++;
+            this.applyFilter(context,context.decoded.subject,'SigninOK');
             console.log("decok");
           }
           catch (err) {
             context.validationStatus=false; 
+            this.applyFilter(context,undefined,'DecodeError');
             console.log("decerr");
           }
         }
 
         this.testSpecialConditions(context);
-
       }
       else {
         console.log(`***${this.type}/${this.name} token already decoded***`);
@@ -153,6 +172,5 @@ export class Basic {
       context.validationStatus=false;
     }
   }
-
 
 }

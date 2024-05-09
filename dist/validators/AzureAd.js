@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AzureAd = void 0;
-const Basic_1 = require("./Basic");
-class AzureAd extends Basic_1.Basic {
+const BasicDecoder_1 = require("./BasicDecoder");
+class AzureAd extends BasicDecoder_1.BasicDecoder {
     constructor(val) {
         super(val);
         this.cachedSigningKeys = new Map();

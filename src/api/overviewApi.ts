@@ -4,7 +4,7 @@ import { Status } from '../model/Status';
 
 export class OverviewApi {
 
-  public routeApi = express.Router();
+  public route = express.Router();
   public env:Environment | undefined;
   public status:Status | undefined;
 
@@ -12,29 +12,17 @@ export class OverviewApi {
     this.env=mainEnv;
     this.status=mainStatus;
 
-    this.routeApi.route('/config')
-      // .all(function (req, res, next) {
-      //   res.setHeader('Content-Type', 'application/json');
-      //   next();
-      // })
+    this.route.route('/config')
       .get( (req, res) => {
         res.json(this.env);
       })
 
-      this.routeApi.route('/status')
-      // .all(function (req, res, next) {
-      //   res.setHeader('Content-Type', 'application/json');
-      //   next();
-      // })
+    this.route.route('/status')
       .get( (req, res) => {
         res.json(this.status);
       });
 
-      this.routeApi.route('/validators')
-      // .all(function (req, res, next) {
-      //   res.setHeader('Content-Type', 'application/json');
-      //   next();
-      // })
+    this.route.route('/validators')
       .get( (req, res) => {
         var resp= [];
         if (this.env?.obkaValidators){
@@ -45,11 +33,7 @@ export class OverviewApi {
         res.json(resp);
       });
 
-      this.routeApi.route('/rulesets')
-      // .all(function (req, res, next) {
-      //   res.setHeader('Content-Type', 'application/json');
-      //   next();
-      // })
+    this.route.route('/rulesets')
       .get( (req, res) => {
         var resp= [];
         if (this.env?.obkaRulesets){

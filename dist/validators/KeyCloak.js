@@ -5,8 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.KeyCloak = void 0;
 const axios_1 = __importDefault(require("axios"));
-const Basic_1 = require("./Basic");
-class KeyCloak extends Basic_1.Basic {
+const BasicDecoder_1 = require("./BasicDecoder");
+class KeyCloak extends BasicDecoder_1.BasicDecoder {
     constructor(val) {
         super(val);
         //+++if (val.schedule) cron.schedule(val.schedule, this.cacheKeys);

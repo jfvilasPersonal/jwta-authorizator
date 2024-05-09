@@ -1,8 +1,8 @@
 import { ITokenDecoder } from './ITokenDecoder';
-import { Basic } from './Basic';
+import { BasicDecoder } from './BasicDecoder';
 import { Validator } from '../model/Validator';
 
-export class AzureAd extends Basic implements ITokenDecoder {
+export class AzureAd extends BasicDecoder implements ITokenDecoder {
   name!:string;
   client:any;
   jwksUri!:string;

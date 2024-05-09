@@ -1,9 +1,9 @@
 import axios from 'axios';
 import { Validator } from '../model/Validator';
 import { ITokenDecoder } from './ITokenDecoder';
-import { Basic as Basic } from './Basic';
+import { BasicDecoder as BasicDecoder } from './BasicDecoder';
 
-export class KeyCloak extends Basic implements ITokenDecoder {
+export class KeyCloak extends BasicDecoder implements ITokenDecoder {
 
   constructor (val:Validator) {
     super(val);
@@ -22,5 +22,4 @@ export class KeyCloak extends Basic implements ITokenDecoder {
     });
   }
  
-  
 }

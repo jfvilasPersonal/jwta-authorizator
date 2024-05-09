@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Cognito = void 0;
-const Basic_1 = require("./Basic");
-class Cognito extends Basic_1.Basic {
+const BasicDecoder_1 = require("./BasicDecoder");
+class Cognito extends BasicDecoder_1.BasicDecoder {
     constructor(val) {
         super(val);
         this.jwksUri = `https://cognito-idp.${val.region}.amazonaws.com/${val.userpool}/.well-known/jwks.json`;

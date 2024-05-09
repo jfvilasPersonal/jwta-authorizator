@@ -1,11 +1,13 @@
-import { Rule } from "./Rule"
+import { Filter } from "./Filter"
 
 export type RequestContext = {
+  epoch:number,
   requestUri:string,
   token?:string,
   decoded?:any,
   validationStatus?:boolean,
   validationError?:string,
-  rules:Array<Rule>,
-  responseHeaders:Map<string,string>
+  responseHeaders:Map<string,string>,
+  action?:string,
+  subject?:string
 }

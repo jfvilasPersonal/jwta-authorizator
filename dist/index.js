@@ -28,7 +28,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const body_parser_1 = __importDefault(require("body-parser"));
-//import { Buffer } from "buffer";
 const overviewApi_1 = require("./api/overviewApi");
 const AzureB2c_1 = require("./validators/AzureB2c");
 const Google_1 = require("./validators/Google");
@@ -43,6 +42,7 @@ const version_1 = require("./version");
 // we need access to kubernetes cluster for reading configmaps
 const k8s = __importStar(require("@kubernetes/client-node"));
 const client_node_1 = require("@kubernetes/client-node");
+const traceApi_1 = require("./api/traceApi");
 const app = (0, express_1.default)();
 app.use(body_parser_1.default.json());
 const port = 3882;
@@ -109,15 +109,15 @@ async function validateRule(rule, context) {
         log(5, "Test 'valid' ruletype with validator");
         log(5, validator);
         //var v = env.obkaValidators.get(env.obkaName)?.get(validator.name)?.decoder;
-        var v = (_a = env.obkaValidators.get(validator.name)) === null || _a === void 0 ? void 0 : _a.decoder;
-        if (v === undefined) {
+        var decoderInstance = (_a = env.obkaValidators.get(validator.name)) === null || _a === void 0 ? void 0 : _a.decoderInstance;
+        if (decoderInstance === undefined) {
             //log(0,`Validator does not exist (undefined): ${env.obkaName}/${validator.name}`);
-            log(0, `Validator does not exist (undefined): ${validator.name}`);
+            log(0, `Decoder instance has not been created (undefined) for validator: ${validator.name}`);
             continue;
         }
         log(1, "Validator type: " + validator.type);
         if (context.token) {
-            await v.decodeAndValidateToken(context);
+            await decoderInstance.decodeAndValidateToken(context);
             if ((rule === null || rule === void 0 ? void 0 : rule.type) === "valid") {
                 log(5, "RESULT of 'valid' ruletype: " + context.validationStatus);
                 if (context.validationStatus)
@@ -272,7 +272,7 @@ async function validateRule(rule, context) {
         else {
             if (validator.type === "basicAuth") {
                 log(1, "Get response header from basicAuth Validator");
-                await v.decodeAndValidateToken(context);
+                await decoderInstance.decodeAndValidateToken(context);
                 console.log(context.responseHeaders);
                 return false;
             }
@@ -319,10 +319,10 @@ async function decideNext(r, context) {
         }
     }
 }
-async function validateRequest(context) {
+async function validateRequest(context, rules) {
     //Firstly we process all 'prefix' type rules
     log(2, "Search 'prefix' uri: " + context.requestUri);
-    for (const r of context.rules) {
+    for (const r of rules) {
         // if (r.uritype==="prefix" && context.requestUri.startsWith(r.uri)) {
         //   r.totalExecuted++;
         //   log(3,"Test "+context.requestUri+" prefix")
@@ -360,7 +360,7 @@ async function validateRequest(context) {
     // then we process all 'regex' type rules
     log(2, "Search 'regex' uri: " + context.requestUri);
     // for-of is used beacause fo async fuctions inside 'forEach' or 'some'
-    for (const r of context.rules) {
+    for (const r of rules) {
         // if (r.uritype==="regex") {
         //   log(3,"Test "+r.uri);
         //   var regex=new RegExp(r.uri,'g');
@@ -403,7 +403,7 @@ async function validateRequest(context) {
     }
     // Finally we search for 'exact' rule uri
     log(2, "Search 'exact' uri: " + context.requestUri);
-    for (const r of context.rules) {
+    for (const r of rules) {
         if (r.uritype === "exact") {
             for (var ruleUri of r.uris) {
                 log(3, `Test ${context.requestUri} against exact ruleUri: ${ruleUri}`);
@@ -468,9 +468,10 @@ function readConfig() {
     // load validators
     log(1, "Loading validators");
     //env.obkaValidators.set(env.obkaName,new Map());
-    var arrayVals = JSON.parse(process.env.OBKA_VALIDATORS);
-    log(1, arrayVals);
-    arrayVals.forEach(validator => {
+    var yamlValidators = JSON.parse(process.env.OBKA_VALIDATORS);
+    log(1, yamlValidators);
+    yamlValidators.forEach(validator => {
+        // set the type of the validator
         var type = Object.keys(validator)[0];
         var val = validator[type];
         val.type = type;
@@ -528,7 +529,7 @@ function readConfig() {
     log(0, "===================================================================================");
     log(0, "Config read");
 }
-async function createAuthorizatorValidators(authorizator) {
+async function createAuthorizatorValidators() {
     log(0, "Load validators");
     //var validatorNames = env.obkaValidators.get(authorizator)?.keys();
     var validatorNames = env.obkaValidators.keys();
@@ -539,8 +540,8 @@ async function createAuthorizatorValidators(authorizator) {
             var val = env.obkaValidators.get(valName);
             if (val) {
                 log(1, val);
-                var decoder = await getValidator(authorizator, valName);
-                val.decoder = decoder;
+                var instance = await getTokenDecoder(valName);
+                val.decoderInstance = instance;
                 log(1, val);
             }
             else {
@@ -549,8 +550,7 @@ async function createAuthorizatorValidators(authorizator) {
         }
     }
 }
-async function getValidator(authorizator, name) {
-    //var validator=env.obkaValidators.get(authorizator)?.get(name);
+async function getTokenDecoder(name) {
     var validator = env.obkaValidators.get(name);
     log(1, 'Obtaining validator: ' + (validator === null || validator === void 0 ? void 0 : validator.name) + '/' + (validator === null || validator === void 0 ? void 0 : validator.type));
     switch (validator === null || validator === void 0 ? void 0 : validator.type) {
@@ -596,7 +596,9 @@ function listen() {
         log(0, `API interface enabled. Configuring API endpoint at /obk-authorizator/${env.obkaNamespace}/${env.obkaName}/api...`);
         //serve api requests
         var ca = new overviewApi_1.OverviewApi(env, status);
-        app.use(`/obk-authorizator/${env.obkaNamespace}/${env.obkaName}/api`, ca.routeApi);
+        app.use(`/obk-authorizator/${env.obkaNamespace}/${env.obkaName}/api/overview`, ca.route);
+        var ta = new traceApi_1.TraceApi(env.obkaValidators);
+        app.use(`/obk-authorizator/${env.obkaNamespace}/${env.obkaName}/api/trace`, ta.route);
     }
     // serve prometheus data
     if (env.obkaPrometheus) {
@@ -655,9 +657,10 @@ function listen() {
         while (localUri === null || localUri === void 0 ? void 0 : localUri.endsWith("/"))
             localUri = localUri === null || localUri === void 0 ? void 0 : localUri.substring(0, localUri.length - 1);
         var rc = {
-            rules: (ruleset !== undefined) ? ruleset.rules : [],
+            //rules: (ruleset !== undefined) ? ruleset.rules : [],
             requestUri: localUri,
-            responseHeaders: new Map()
+            responseHeaders: new Map(),
+            epoch: Date.now()
         };
         if (authValue)
             rc.token = authValue;
@@ -666,14 +669,14 @@ function listen() {
         log(3, JSON.stringify(rc));
         var start = process.hrtime();
         log(2, "Start time: " + start.toString());
-        var isOk = await validateRequest(rc);
+        var isOk = await validateRequest(rc, (ruleset !== undefined) ? ruleset.rules : []);
         var end = process.hrtime();
         log(2, "End time: " + end.toString());
-        var micros = ((end[0] * 1000000 + end[1] / 1000) - (start[0] * 1000000 + start[1] / 1000));
+        var microSeconds = ((end[0] * 1000000 + end[1] / 1000) - (start[0] * 1000000 + start[1] / 1000));
         if (env.obkaPrometheus)
             promRequestsMetric.inc();
-        log(2, `Request: ${originalUri}  Elapsed(us): ${micros}  Count: ${++status.totalRequests}`);
-        status.totalMicros += micros;
+        log(2, `Request: ${originalUri}  Elapsed(us): ${microSeconds}  Count: ${++status.totalRequests}`);
+        status.totalMicros += microSeconds;
         if (isOk) {
             if (env.obkaPrometheus)
                 promValidMetric.inc();
@@ -706,7 +709,7 @@ redirLog();
 // read config
 readConfig();
 // instantiate validators
-createAuthorizatorValidators(env.obkaName).then(() => {
+createAuthorizatorValidators().then(() => {
     // launch authorizator
     log(0, "OBK1500 Control is being given to Oberkorn authorizator");
     // launch listener

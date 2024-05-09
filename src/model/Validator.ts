@@ -1,4 +1,6 @@
 import { ITokenDecoder } from "../validators/ITokenDecoder"
+import { Filter } from "./Filter"
+import { RequestContext } from "./RequestContext"
 
 export type Validator = {
     // general properties
@@ -8,7 +10,9 @@ export type Validator = {
     iss?:string,
     verify:boolean,
     url?:string,
-    decoder:ITokenDecoder|undefined,
+    decoderInstance:ITokenDecoder,
+
+    //filter?:Filter,
 
     // Azure
     tenant?: string,

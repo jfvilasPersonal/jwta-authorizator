@@ -1,12 +1,9 @@
 import axios from 'axios';
-// import jwt from 'jsonwebtoken';
-// import jkwsClient from 'jwks-rsa';
-// import { RequestContext } from '../model/RequestContext';
 import { Validator } from '../model/Validator';
 import { ITokenDecoder } from './ITokenDecoder';
-import { Basic } from './Basic';
+import { BasicDecoder } from './BasicDecoder';
 
-export class AzureB2c extends Basic implements ITokenDecoder {
+export class AzureB2c extends BasicDecoder implements ITokenDecoder {
 
   constructor (val:Validator) {
     super(val);

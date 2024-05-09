@@ -1,8 +1,8 @@
 import { ITokenDecoder } from './ITokenDecoder';
-import { Basic } from './Basic';
+import { BasicDecoder } from './BasicDecoder';
 import { Validator } from '../model/Validator';
 
-export class Cognito extends Basic implements ITokenDecoder {
+export class Cognito extends BasicDecoder implements ITokenDecoder {
 
   constructor (val:Validator) {
     super(val);
