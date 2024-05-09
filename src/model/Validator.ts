@@ -1,6 +1,7 @@
 import { ITokenDecoder } from "../validators/ITokenDecoder"
-import { Filter } from "./Filter"
-import { RequestContext } from "./RequestContext"
+import { Invalidation } from "./Invalidation"
+// import { Filter } from "./Filter"
+// import { RequestContext } from "./RequestContext"
 
 export type Validator = {
     // general properties
@@ -34,6 +35,7 @@ export type Validator = {
     // Custom
     code: string,
     configMap: string,
-    configMapkey: string
-    
+    configMapkey: string,
+
+    invalidation?:Invalidation
 }

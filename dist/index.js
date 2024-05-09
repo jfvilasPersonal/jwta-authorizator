@@ -43,6 +43,7 @@ const version_1 = require("./version");
 const k8s = __importStar(require("@kubernetes/client-node"));
 const client_node_1 = require("@kubernetes/client-node");
 const traceApi_1 = require("./api/traceApi");
+const invApi_1 = require("./api/invApi");
 const app = (0, express_1.default)();
 app.use(body_parser_1.default.json());
 const port = 3882;
@@ -108,10 +109,8 @@ async function validateRule(rule, context) {
         }
         log(5, "Test 'valid' ruletype with validator");
         log(5, validator);
-        //var v = env.obkaValidators.get(env.obkaName)?.get(validator.name)?.decoder;
         var decoderInstance = (_a = env.obkaValidators.get(validator.name)) === null || _a === void 0 ? void 0 : _a.decoderInstance;
         if (decoderInstance === undefined) {
-            //log(0,`Validator does not exist (undefined): ${env.obkaName}/${validator.name}`);
             log(0, `Decoder instance has not been created (undefined) for validator: ${validator.name}`);
             continue;
         }
@@ -599,6 +598,8 @@ function listen() {
         app.use(`/obk-authorizator/${env.obkaNamespace}/${env.obkaName}/api/overview`, ca.route);
         var ta = new traceApi_1.TraceApi(env.obkaValidators);
         app.use(`/obk-authorizator/${env.obkaNamespace}/${env.obkaName}/api/trace`, ta.route);
+        var ia = new invApi_1.InvApi(env.obkaValidators);
+        app.use(`/obk-authorizator/${env.obkaNamespace}/${env.obkaName}/api/invalidate`, ia.route);
     }
     // serve prometheus data
     if (env.obkaPrometheus) {

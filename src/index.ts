@@ -27,6 +27,7 @@ import { CoreV1Api } from '@kubernetes/client-node';
 import { Ruleset } from './model/Ruleset';
 import { TraceApi } from './api/traceApi';
 import { Filter } from './model/Filter';
+import { InvApi } from './api/invApi';
 
 
 const app = express();
@@ -102,10 +103,8 @@ async function validateRule(rule:Rule, context:RequestContext):Promise<boolean> 
 
     log(5,"Test 'valid' ruletype with validator");
     log(5,validator);
-    //var v = env.obkaValidators.get(env.obkaName)?.get(validator.name)?.decoder;
     var decoderInstance = env.obkaValidators.get(validator.name)?.decoderInstance;
     if (decoderInstance===undefined) {
-      //log(0,`Validator does not exist (undefined): ${env.obkaName}/${validator.name}`);
       log(0,`Decoder instance has not been created (undefined) for validator: ${validator.name}`);
       continue;
     }
@@ -646,6 +645,8 @@ function listen() {
     app.use(`/obk-authorizator/${env.obkaNamespace}/${env.obkaName}/api/overview`, ca.route);
     var ta:TraceApi = new TraceApi(env.obkaValidators);
     app.use(`/obk-authorizator/${env.obkaNamespace}/${env.obkaName}/api/trace`, ta.route);
+    var ia:InvApi = new InvApi(env.obkaValidators);
+    app.use(`/obk-authorizator/${env.obkaNamespace}/${env.obkaName}/api/invalidate`, ia.route);
   }
 
 
