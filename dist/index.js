@@ -43,6 +43,7 @@ const version_1 = require("./version");
 const k8s = __importStar(require("@kubernetes/client-node"));
 const client_node_1 = require("@kubernetes/client-node");
 const traceApi_1 = require("./api/traceApi");
+//import { Filter } from './model/Filter';
 const invApi_1 = require("./api/invApi");
 const app = (0, express_1.default)();
 app.use(body_parser_1.default.json());

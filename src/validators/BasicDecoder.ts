@@ -42,6 +42,22 @@ export class BasicDecoder implements ITokenDecoder{
     }
   }
 
+  public applyInvalidation(rc:RequestContext, decoded:any = {}) : boolean{
+    if (this.invalidation.enabled) {
+      if (this.invalidation.sub.length>0 && this.invalidation.sub.indexOf(decoded.sub))
+        return true;
+      // +++
+      // claim invalidation shouñd take place according to an operator: conatin a vlue, be present, etc...
+      // else if (this.invalidation.claim.length>0 && this.invalidation.claim.indexOf(decoded.sub))
+      //   return true;
+      else if (this.invalidation.iss.length>0 && this.invalidation.iss.indexOf(decoded.iss))
+        return true;
+      else if (this.invalidation.aud.length>0 && this.invalidation.aud.indexOf(decoded.aud))
+        return true;
+    }
+    return false;
+  }
+
   public async cacheKeys() {
     console.log(`Downloading & caching keys for validator ${this.type}/${this.name}`);
     //this.client = jkwsClient({ jwksUri: this.jwksUri })
@@ -129,13 +145,13 @@ export class BasicDecoder implements ITokenDecoder{
           const decoded = await new Promise((resolve, reject) => {
             jwt.verify(context.token as string, this.getKey, {}, (err, decoded) => {
               if (err) {
-                console.log("vererr");
+                console.log("Verify Err");
                 console.log(err);
                 this.applyFilter(context,undefined,'VerifyError');
                 reject(err);
               }
               else {
-                console.log("verok");
+                console.log("Verify ok");
                 console.log(decoded);
                 this.totalOkRequests++;
                 resolve(decoded);
@@ -143,16 +159,16 @@ export class BasicDecoder implements ITokenDecoder{
             });
           });
           context.decoded=(decoded as {});
-          context.validationStatus=true; 
           this.totalOkRequests++;
           this.applyFilter(context,context.decoded.subject,'SigninOK');
+          context.validationStatus=!this.applyInvalidation(context,context.decoded);
         }
         else {
           try {
             context.decoded = jwt.decode(context.token,{}) as {};
-            context.validationStatus=true; 
             this.totalOkRequests++;
             this.applyFilter(context,context.decoded.subject,'SigninOK');
+            context.validationStatus=!this.applyInvalidation(context,context.decoded);
             console.log("decok");
           }
           catch (err) {
@@ -166,6 +182,7 @@ export class BasicDecoder implements ITokenDecoder{
       }
       else {
         console.log(`***${this.type}/${this.name} token already decoded***`);
+        context.validationStatus=!this.applyInvalidation(context,context.decoded);
       }
     }
     catch (err) {

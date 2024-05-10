@@ -26,7 +26,7 @@ import * as k8s from '@kubernetes/client-node';
 import { CoreV1Api } from '@kubernetes/client-node';
 import { Ruleset } from './model/Ruleset';
 import { TraceApi } from './api/traceApi';
-import { Filter } from './model/Filter';
+//import { Filter } from './model/Filter';
 import { InvApi } from './api/invApi';
 
 
