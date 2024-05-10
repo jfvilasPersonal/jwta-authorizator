@@ -2,7 +2,7 @@ import { RequestContext } from "./RequestContext"
 
 export class Filter {
   status:boolean=false;
-  sub?:string;
+  subject?:string;
   aud?:string;
   iss?:string;
   maxEvents:number=0;

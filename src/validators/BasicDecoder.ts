@@ -5,6 +5,7 @@ import { RequestContext } from '../model/RequestContext';
 import { Validator } from '../model/Validator'
 import { Filter } from '../model/Filter';
 import { ITokenDecoder } from './ITokenDecoder';
+import { Invalidation } from '../model/Invalidation';
 
 export class BasicDecoder implements ITokenDecoder{
   name!:string;
@@ -18,6 +19,7 @@ export class BasicDecoder implements ITokenDecoder{
   totalRequests:number=0;
   totalOkRequests:number=0;
   filter:Filter;
+  invalidation:Invalidation;
   
   constructor (val:Validator) {
     console.log('ctor.name:'+val.name);
@@ -28,11 +30,12 @@ export class BasicDecoder implements ITokenDecoder{
     if (val.iss) this.iss=val.iss;
     this.verify=val.verify;
     this.filter=new Filter();
+    this.invalidation=new Invalidation();
   }
 
   public applyFilter(rc:RequestContext, sub?:string, action?:string) {
     if (this.filter) {
-      if (sub!==undefined && this.filter.sub===sub) {
+      if (sub!==undefined && this.filter.subject===sub) {
         rc.action=action;
         this.filter.events.push(rc);
       }

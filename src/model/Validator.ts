@@ -13,8 +13,6 @@ export type Validator = {
     url?:string,
     decoderInstance:ITokenDecoder,
 
-    //filter?:Filter,
-
     // Azure
     tenant?: string,
     userflow?: string,
@@ -36,6 +34,4 @@ export type Validator = {
     code: string,
     configMap: string,
     configMapkey: string,
-
-    invalidation?:Invalidation
 }

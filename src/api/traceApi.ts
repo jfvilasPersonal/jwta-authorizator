@@ -30,9 +30,9 @@ export class TraceApi {
         var vname=req.body.validator;
         var val=this.vals.get(vname);
         if (val!==undefined) {
-          var reqFilt=req.body as Filter;
-          val.decoderInstance.filter.maxEvents=reqFilt.maxEvents;
-          val.decoderInstance.filter.sub = reqFilt.sub;
+          var requiredFilter=req.body as Filter;
+          val.decoderInstance.filter.maxEvents=requiredFilter.maxEvents;
+          val.decoderInstance.filter.subject = requiredFilter.subject;
           val.decoderInstance.filter.events = [];
           val.decoderInstance.filter.status = true;
           res.status(200).json({ ok:true, id:Date.now() });

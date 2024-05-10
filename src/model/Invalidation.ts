@@ -1,8 +1,7 @@
-export type Invalidation = {
-
-// invalidations
-    subject:string[],
-    claim:string[],
-    aud:string[],
-    iss:string[]
+export class Invalidation {
+    enabled:boolean=false;
+    claim:string[]=[];
+    sub: string[]=[];
+    aud:string[]=[];
+    iss:string[]=[];
 }
