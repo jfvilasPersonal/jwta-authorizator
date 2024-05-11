@@ -46,9 +46,9 @@ export class TraceApi {
       .post( (req, res) => {
         var vname=req.body.validator;
         var id=req.body.id;
-        console.log(vname);
-        console.log(req.body);
-        console.log(this.vals);
+        // console.log(vname);
+        // console.log(req.body);
+        // console.log(this.vals);
         var val=this.vals.get(vname);
         if (val!==undefined) {
           var events:RequestContext[]=[];

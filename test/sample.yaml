@@ -13,7 +13,7 @@ metadata:
   namespace: dev
 spec:
   config:
-    replicas: 1
+    replicas: 2
     prometheus: false
     api: true
     logLevel: 9

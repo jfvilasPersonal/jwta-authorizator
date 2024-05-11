@@ -1,6 +1,7 @@
 call update-version
 call npm run build
 
+kubectl config use-context k3d-oberkorn
 kubectl delete -f test\sample.yaml
 kubectl delete deployment obk-authorizator-ja-jfvilas-deply -n dev
 kubectl delete service  obk-authorizator-ja-jfvilas-svc -n dev
