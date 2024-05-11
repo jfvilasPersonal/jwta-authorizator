@@ -106,107 +106,111 @@ export class BasicAuth extends BasicDecoder implements ITokenDecoder {
   }
 
   decodeAndValidateToken = async (context:RequestContext) => {
+    this.totalRequests++;
+    var start=process.hrtime()
     try {
-      this.totalRequests++;
       console.log("Decode token in Basic Auth");
       if (!context.token) {
         context.responseHeaders?.set("WWW-Authenticate",`Basic realm="${this.realm}"`);
         console.log(context.responseHeaders);
         context.validationStatus=false; 
-        return;
       } 
-      if (!context.validationStatus && this.usersdb) {
-        // decode the token (it is in fact the authorization header of a basic auth)
-        console.log(`Received: ${context.token}`);
-        var token=context.token.trim();
-        var decoded=Buffer.from(token, 'base64').toString('utf-8');
-        console.log(`Decoded: ${decoded}`);
-        var i =decoded.indexOf(':');
-        var username=decoded.substring(0,i);
-        var password=decoded.substring(i+1);
+      else {
+        if (!context.validationStatus && this.usersdb) {
+          // decode the token (it is in fact the authorization header of a basic auth)
+          console.log(`Received: ${context.token}`);
+          var token=context.token.trim();
+          var decoded=Buffer.from(token, 'base64').toString('utf-8');
+          console.log(`Decoded: ${decoded}`);
+          var i =decoded.indexOf(':');
+          var username=decoded.substring(0,i);
+          var password=decoded.substring(i+1);
 
-        console.log('stored: '+this.usersdb[username]);
-        var blankPos=password.indexOf(' ');
-        if (blankPos>=0) {
-          // it's a change password request (password field contains oldPassword, blankSpace, newPassword)
-          console.log("ChangePassword Request");
-          var oldPassword=password.substring(0,i);
-          if (this.usersdb[username]===oldPassword) {
-            // this is the first step for changing password: we receive the old+blank+new password form the user but in the db is stored just the old password
-            // so we update the password in the db (with old and new) and request a second step
-            console.log("ChangePassword Step 1");
-            console.log('store: '+password);
-            this.usersdb[username]=password;
-            context.responseHeaders?.set("WWW-Authenticate",`Basic realm="${this.realm}"`);
-            this.applyFilter(context,username,'ChangePasswordStep1');
-          }
-          else {
-            // if recieve old+blank+new and stored is old+bank+new (and they match) we make no changes and keep going
-            if (this.usersdb[username]===password) {
-              console.log('keep going');
+          console.log('stored: '+this.usersdb[username]);
+          var blankPos=password.indexOf(' ');
+          if (blankPos>=0) {
+            // it's a change password request (password field contains oldPassword, blankSpace, newPassword)
+            console.log("ChangePassword Request");
+            var oldPassword=password.substring(0,i);
+            if (this.usersdb[username]===oldPassword) {
+              // this is the first step for changing password: we receive the old+blank+new password form the user but in the db is stored just the old password
+              // so we update the password in the db (with old and new) and request a second step
+              console.log("ChangePassword Step 1");
+              console.log('store: '+password);
+              this.usersdb[username]=password;
               context.responseHeaders?.set("WWW-Authenticate",`Basic realm="${this.realm}"`);
+              this.totalOkRequests++;
+              this.applyFilter(context,username,'ChangePasswordStep1');
             }
             else {
-              console.log("ChangeRequest with invalid oldpassword");
-              context.responseHeaders?.set("WWW-Authenticate",`Basic realm="${this.realm}"`);
-              this.applyFilter(context,username,'ChangePasswordInvalidPassword');
+              // if recieve old+blank+new and stored is old+bank+new (and they match) we make no changes and keep going
+              if (this.usersdb[username]===password) {
+                console.log('keep going');
+                context.responseHeaders?.set("WWW-Authenticate",`Basic realm="${this.realm}"`);
+              }
+              else {
+                console.log("ChangeRequest with invalid oldpassword");
+                context.responseHeaders?.set("WWW-Authenticate",`Basic realm="${this.realm}"`);
+                this.applyFilter(context,username,'ChangePasswordInvalidPassword');
+              }
+            }
+          }
+          else {
+            // it's a sign in request
+            console.log(`Find user '${username}' with password *****`);
+            if (this.usersdb[username]===password) {
+              console.log("Found: "+username);
+              context.decoded=username;
+              this.totalOkRequests++;
+              context.validationStatus=true;
+              this.applyFilter(context,username,'SigninOK');
+            }
+            else {
+              console.log('password do not match');
+              var storedPassword = this.usersdb[username] as string;
+              if (storedPassword===undefined) {
+                console.log("User NotFound");
+                context.responseHeaders?.set("WWW-Authenticate",`Basic realm="${this.realm}"`);
+                this.applyFilter(context,username,'UnknownUser');
+              }
+              else {
+                var i = storedPassword.indexOf(' ');
+                if (i<0) {
+                  // it is a signin where the user entered an invalid password
+                  console.log("Invalid Password");
+                  context.responseHeaders?.set("WWW-Authenticate",`Basic realm="${this.realm}"`);
+                  this.applyFilter(context,username,'InvalidPassword');
+                }
+                else {
+                  console.log('second step');
+                  // it is a second step of a change password, that is, th user entered the new password second time and in th db is stored old+blank+new
+                  var oldPassword=storedPassword.substring(0,i);
+                  var newPassword=storedPassword.substring(i+1);
+                  if (password===newPassword) {
+                    // second step change-password is correct, we update the password, validate the access and store the usersdb
+                    console.log('update password to: '+newPassword);
+                    this.usersdb[username]=newPassword;
+                    context.decoded=username;
+                    this.totalOkRequests++;
+                    context.validationStatus=true; 
+                    //we only update kubernetes secret if password change is ok
+                    this.saveUsersDb();
+                    this.applyFilter(context,username,'PasswordUpdatedOK');
+                  }
+                  else {
+                    // second step change-password is not correct, we restore the old password
+                    console.log('restore old password to: '+oldPassword);
+                    this.usersdb[username]=oldPassword;
+                    this.applyFilter(context,username,'InvalidNewPassword');
+                  }
+                }
+              }
             }
           }
         }
         else {
-          // it's a sign in request
-          console.log(`Find user '${username}' with password *****`);
-          if (this.usersdb[username]===password) {
-            console.log("Found: "+username);
-            context.decoded=username;
-            context.validationStatus=true;
-            this.applyFilter(context,username,'SigninOK');
-          }
-          else {
-            console.log('password do not match');
-            var storedPassword = this.usersdb[username] as string;
-            if (storedPassword===undefined) {
-              console.log("User NotFound");
-              context.responseHeaders?.set("WWW-Authenticate",`Basic realm="${this.realm}"`);
-              this.applyFilter(context,username,'UnknownUser');
-            }
-            else {
-              var i = storedPassword.indexOf(' ');
-              if (i<0) {
-                // it is a signin where the user entered an invalid password
-                console.log("Invalid Password");
-                context.responseHeaders?.set("WWW-Authenticate",`Basic realm="${this.realm}"`);
-                this.applyFilter(context,username,'InvalidPassword');
-              }
-              else {
-                console.log('second step');
-                // it is a second step of a change password, that is, th user entered the new password second time and in th db is stored old+blank+new
-                var oldPassword=storedPassword.substring(0,i);
-                var newPassword=storedPassword.substring(i+1);
-                if (password===newPassword) {
-                  // second step change-password is correct, we update the password, validate the access and store the usersdb
-                  console.log('update password to: '+newPassword);
-                  this.usersdb[username]=newPassword;
-                  context.decoded=username;
-                  context.validationStatus=true; 
-                  //we only update kubernetes secret if password change is ok
-                  this.saveUsersDb();
-                  this.applyFilter(context,username,'PasswordUpdatedOK');
-                }
-                else {
-                  // second step change-password is not correct, we restore the old password
-                  console.log('restore old password to: '+oldPassword);
-                  this.usersdb[username]=oldPassword;
-                  this.applyFilter(context,username,'InvalidNewPassword');
-                }
-              }
-            }
-          }
+          console.log(`***${this.type}/${this.name} token already decoded***`);
         }
-        return;
-      }
-      else {
-        console.log(`***${this.type}/${this.name} token already decoded***`);
       }
     }
     catch (err) {
@@ -215,6 +219,11 @@ export class BasicAuth extends BasicDecoder implements ITokenDecoder {
       context.validationError=(err as string);
       context.validationStatus=false;
     }
+
+    var end=process.hrtime()
+    var microSeconds = ( (end[0] * 1000000 + end[1] / 1000) - (start[0] * 1000000 + start[1] / 1000));
+    this.totalMicros+=microSeconds;
+
   }
   
 }

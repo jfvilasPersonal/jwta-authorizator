@@ -9,5 +9,6 @@ export type RequestContext = {
   validationError?:string,
   responseHeaders:Map<string,string>,
   action?:string,
-  subject?:string
+  subject?:string,
+  uuid?:string
 }

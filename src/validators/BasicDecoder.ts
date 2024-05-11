@@ -6,11 +6,11 @@ import { Validator } from '../model/Validator'
 import { Filter } from '../model/Filter';
 import { ITokenDecoder } from './ITokenDecoder';
 import { Invalidation } from '../model/Invalidation';
+import { v4 as uuidv4} from 'uuid';
 
 export class BasicDecoder implements ITokenDecoder{
   name!:string;
   type!:string;
-  //client:any; //+++ ¿?
   jwksUri!:string;
   cachedSigningKeys:Map<string,string> = new Map();
   iss!:string;
@@ -18,6 +18,7 @@ export class BasicDecoder implements ITokenDecoder{
   verify:boolean=true;
   totalRequests:number=0;
   totalOkRequests:number=0;
+  totalMicros:number=0;
   filter:Filter;
   invalidation:Invalidation;
   
@@ -37,6 +38,7 @@ export class BasicDecoder implements ITokenDecoder{
     if (this.filter) {
       if (sub!==undefined && this.filter.subject===sub) {
         rc.action=action;
+        rc.uuid=uuidv4();
         this.filter.events.push(rc);
       }
     }
@@ -133,56 +135,58 @@ export class BasicDecoder implements ITokenDecoder{
 
 
   public decodeAndValidateToken = async (context:RequestContext) => {
+    var start=process.hrtime()
     try {
       this.totalRequests++;
-  
+ 
       if (!context.token) {
         console.log("***b2c notoken***");
-        return;
-      } 
-      if (!context.validationStatus) {
-        if (this.verify) {
-          const decoded = await new Promise((resolve, reject) => {
-            jwt.verify(context.token as string, this.getKey, {}, (err, decoded) => {
-              if (err) {
-                console.log("Verify Err");
-                console.log(err);
-                this.applyFilter(context,undefined,'VerifyError');
-                reject(err);
-              }
-              else {
-                console.log("Verify ok");
-                console.log(decoded);
-                this.totalOkRequests++;
-                resolve(decoded);
-              }
+      }
+      else {   
+        if (!context.validationStatus) {
+          if (this.verify) {
+            const decoded = await new Promise((resolve, reject) => {
+              jwt.verify(context.token as string, this.getKey, {}, (err, decoded) => {
+                if (err) {
+                  console.log("Verify Err");
+                  console.log(err);
+                  this.applyFilter(context,undefined,'VerifyError');
+                  reject(err);
+                }
+                else {
+                  console.log("Verify ok");
+                  console.log(decoded);
+                  this.totalOkRequests++;
+                  resolve(decoded);
+                }
+              });
             });
-          });
-          context.decoded=(decoded as {});
-          this.totalOkRequests++;
-          this.applyFilter(context,context.decoded.subject,'SigninOK');
-          context.validationStatus=!this.applyInvalidation(context,context.decoded);
-        }
-        else {
-          try {
-            context.decoded = jwt.decode(context.token,{}) as {};
+            context.decoded=(decoded as {});
             this.totalOkRequests++;
             this.applyFilter(context,context.decoded.subject,'SigninOK');
             context.validationStatus=!this.applyInvalidation(context,context.decoded);
-            console.log("decok");
           }
-          catch (err) {
-            context.validationStatus=false; 
-            this.applyFilter(context,undefined,'DecodeError');
-            console.log("decerr");
+          else {
+            try {
+              context.decoded = jwt.decode(context.token,{}) as {};
+              this.totalOkRequests++;
+              this.applyFilter(context,context.decoded.subject,'SigninOK');
+              context.validationStatus=!this.applyInvalidation(context,context.decoded);
+              console.log("decok");
+            }
+            catch (err) {
+              context.validationStatus=false; 
+              this.applyFilter(context,undefined,'DecodeError');
+              console.log("decerr");
+            }
           }
-        }
 
-        this.testSpecialConditions(context);
-      }
-      else {
-        console.log(`***${this.type}/${this.name} token already decoded***`);
-        context.validationStatus=!this.applyInvalidation(context,context.decoded);
+          this.testSpecialConditions(context);
+        }
+        else {
+          console.log(`***${this.type}/${this.name} token already decoded***`);
+          context.validationStatus=!this.applyInvalidation(context,context.decoded);
+        }
       }
     }
     catch (err) {
@@ -191,6 +195,10 @@ export class BasicDecoder implements ITokenDecoder{
       context.validationError=(err as string);
       context.validationStatus=false;
     }
+
+    var end=process.hrtime()
+    var microSeconds = ( (end[0] * 1000000 + end[1] / 1000) - (start[0] * 1000000 + start[1] / 1000));
+    this.totalMicros+=microSeconds;
   }
 
 }

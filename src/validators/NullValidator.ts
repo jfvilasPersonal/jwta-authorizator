@@ -14,6 +14,7 @@ export class NullValidator extends BasicDecoder implements ITokenDecoder {
 
   decodeAndValidateToken = async (context:RequestContext) => {
     this.totalRequests++;
+    var start=process.hrtime()
     if (this.returnValue) {
       this.totalOkRequests++;
       this.applyFilter(context,context.decoded.subject,'SigninOK');
@@ -23,6 +24,11 @@ export class NullValidator extends BasicDecoder implements ITokenDecoder {
     }
 
     context.validationStatus=this.returnValue;
+    
+    var end=process.hrtime()
+    var microSeconds = ( (end[0] * 1000000 + end[1] / 1000) - (start[0] * 1000000 + start[1] / 1000));
+    this.totalMicros+=microSeconds;
+
   }
      
 }
