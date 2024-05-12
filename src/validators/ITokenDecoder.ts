@@ -6,6 +6,9 @@ export interface ITokenDecoder {
     decodeAndValidateToken(context:RequestContext) : Promise<void>;
     filter:Filter;
     invalidation:Invalidation;
+    totalRequests:number;
+    totalOkRequests:number;
+    totalMicros:number;
 }
   
   

@@ -1,14 +1,18 @@
+// web server
 import express from 'express';
 import bodyParser from 'body-parser';
-import { OverviewApi } from './api/overviewApi';
+
+// model, data strcutures
 import { RequestContext } from './model/RequestContext';
 import { Rule } from './model/Rule';
 import { Validator } from './model/Validator';
 import { Environment } from './model/Environment';
 import { Status } from './model/Status';
+import { Ruleset } from './model/Ruleset';
 
 import { ITokenDecoder } from './validators/ITokenDecoder';
 
+// Validators
 import { AzureB2c } from './validators/AzureB2c';
 import { Google } from './validators/Google';
 import { AzureAd } from './validators/AzureAd';
@@ -17,17 +21,22 @@ import { KeyCloak } from './validators/KeyCloak';
 import { BasicAuth } from './validators/BasicAuth';
 import { Custom } from './validators/Custom';
 import { NullValidator } from './validators/NullValidator';
+
+// Prometheus
 import { Counter, register } from 'prom-client';
 
+// automatic versioning by changing version.ts in CICD
 import { VERSION } from './version';
 
-// we need access to kubernetes cluster for reading configmaps
+// we need access to kubernetes cluster for reading configmaps and secrets
 import * as k8s from '@kubernetes/client-node';
 import { CoreV1Api } from '@kubernetes/client-node';
-import { Ruleset } from './model/Ruleset';
-import { TraceApi } from './api/traceApi';
-//import { Filter } from './model/Filter';
-import { InvApi } from './api/invApi';
+
+// api endpoints
+import { OverviewApi } from './api/OverviewApi';
+import { TraceApi } from './api/TraceApi';
+import { InvApi } from './api/InvApi';
+import { ValidatorApi } from './api/ValidatorApi';
 
 
 const app = express();
@@ -518,7 +527,7 @@ function readConfig() {
     for (var i=0;i<ruleset.uriPrefix.length;i++) {
       while (ruleset.uriPrefix[i].endsWith('/')) ruleset.uriPrefix[i]=ruleset.uriPrefix[i].substring(0,ruleset.uriPrefix[i].length-1);
     }
-    // remove duplicates using spread syntax and Set (Ser constructor removes duplicates)
+    // remove duplicates using spread syntax and Set (Set constructor removes array param duplicates)
     ruleset.uriPrefix = [... new Set(ruleset.uriPrefix)];
     
     // fix uris in each ruleset rule, creating always a strin array mergin 'uri' with 'uris'
@@ -563,12 +572,10 @@ function readConfig() {
 
 async function createAuthorizatorValidators() {
   log(0,"Load validators");
-  //var validatorNames = env.obkaValidators.get(authorizator)?.keys();
   var validatorNames = env.obkaValidators.keys();
   if (validatorNames) {
     for (const valName of validatorNames) {
       log(1,"Loading validator "+valName);
-      //var val = env.obkaValidators.get(authorizator)?.get(valName);
       var val = env.obkaValidators.get(valName);
       if (val) {
         log(1,val);
@@ -647,6 +654,8 @@ function listen() {
     app.use(`/obk-authorizator/${env.obkaNamespace}/${env.obkaName}/api/trace`, ta.route);
     var ia:InvApi = new InvApi(env.obkaValidators);
     app.use(`/obk-authorizator/${env.obkaNamespace}/${env.obkaName}/api/invalidate`, ia.route);
+    var va:ValidatorApi = new ValidatorApi(env.obkaValidators);
+    app.use(`/obk-authorizator/${env.obkaNamespace}/${env.obkaName}/api/validator`, va.route);
   }
 
 

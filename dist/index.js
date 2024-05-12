@@ -26,9 +26,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+// web server
 const express_1 = __importDefault(require("express"));
 const body_parser_1 = __importDefault(require("body-parser"));
-const overviewApi_1 = require("./api/overviewApi");
+// Validators
 const AzureB2c_1 = require("./validators/AzureB2c");
 const Google_1 = require("./validators/Google");
 const AzureAd_1 = require("./validators/AzureAd");
@@ -37,14 +38,18 @@ const KeyCloak_1 = require("./validators/KeyCloak");
 const BasicAuth_1 = require("./validators/BasicAuth");
 const Custom_1 = require("./validators/Custom");
 const NullValidator_1 = require("./validators/NullValidator");
+// Prometheus
 const prom_client_1 = require("prom-client");
+// automatic versioning by changing version.ts in CICD
 const version_1 = require("./version");
-// we need access to kubernetes cluster for reading configmaps
+// we need access to kubernetes cluster for reading configmaps and secrets
 const k8s = __importStar(require("@kubernetes/client-node"));
 const client_node_1 = require("@kubernetes/client-node");
-const traceApi_1 = require("./api/traceApi");
-//import { Filter } from './model/Filter';
-const invApi_1 = require("./api/invApi");
+// api endpoints
+const OverviewApi_1 = require("./api/OverviewApi");
+const TraceApi_1 = require("./api/TraceApi");
+const InvApi_1 = require("./api/InvApi");
+const ValidatorApi_1 = require("./api/ValidatorApi");
 const app = (0, express_1.default)();
 app.use(body_parser_1.default.json());
 const port = 3882;
@@ -492,7 +497,7 @@ function readConfig() {
             while (ruleset.uriPrefix[i].endsWith('/'))
                 ruleset.uriPrefix[i] = ruleset.uriPrefix[i].substring(0, ruleset.uriPrefix[i].length - 1);
         }
-        // remove duplicates using spread syntax and Set (Ser constructor removes duplicates)
+        // remove duplicates using spread syntax and Set (Set constructor removes array param duplicates)
         ruleset.uriPrefix = [...new Set(ruleset.uriPrefix)];
         // fix uris in each ruleset rule, creating always a strin array mergin 'uri' with 'uris'
         for (var r of ruleset.rules) {
@@ -531,12 +536,10 @@ function readConfig() {
 }
 async function createAuthorizatorValidators() {
     log(0, "Load validators");
-    //var validatorNames = env.obkaValidators.get(authorizator)?.keys();
     var validatorNames = env.obkaValidators.keys();
     if (validatorNames) {
         for (const valName of validatorNames) {
             log(1, "Loading validator " + valName);
-            //var val = env.obkaValidators.get(authorizator)?.get(valName);
             var val = env.obkaValidators.get(valName);
             if (val) {
                 log(1, val);
@@ -595,12 +598,14 @@ function listen() {
     if (env.obkaApi) {
         log(0, `API interface enabled. Configuring API endpoint at /obk-authorizator/${env.obkaNamespace}/${env.obkaName}/api...`);
         //serve api requests
-        var ca = new overviewApi_1.OverviewApi(env, status);
+        var ca = new OverviewApi_1.OverviewApi(env, status);
         app.use(`/obk-authorizator/${env.obkaNamespace}/${env.obkaName}/api/overview`, ca.route);
-        var ta = new traceApi_1.TraceApi(env.obkaValidators);
+        var ta = new TraceApi_1.TraceApi(env.obkaValidators);
         app.use(`/obk-authorizator/${env.obkaNamespace}/${env.obkaName}/api/trace`, ta.route);
-        var ia = new invApi_1.InvApi(env.obkaValidators);
+        var ia = new InvApi_1.InvApi(env.obkaValidators);
         app.use(`/obk-authorizator/${env.obkaNamespace}/${env.obkaName}/api/invalidate`, ia.route);
+        var va = new ValidatorApi_1.ValidatorApi(env.obkaValidators);
+        app.use(`/obk-authorizator/${env.obkaNamespace}/${env.obkaName}/api/validator`, va.route);
     }
     // serve prometheus data
     if (env.obkaPrometheus) {

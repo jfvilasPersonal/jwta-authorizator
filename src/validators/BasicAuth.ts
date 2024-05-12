@@ -222,6 +222,7 @@ export class BasicAuth extends BasicDecoder implements ITokenDecoder {
 
     var end=process.hrtime()
     var microSeconds = ( (end[0] * 1000000 + end[1] / 1000) - (start[0] * 1000000 + start[1] / 1000));
+    console.log('ms:'+microSeconds);
     this.totalMicros+=microSeconds;
 
   }

@@ -27,7 +27,7 @@ export class OverviewApi {
         var resp= [];
         if (this.env?.obkaValidators){
           for (var val of this.env?.obkaValidators.values()) {
-            resp.push ({ name:val.name, validator:val});
+            resp.push (val);
           }
         }
         res.json(resp);

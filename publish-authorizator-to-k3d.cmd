@@ -1,6 +1,11 @@
 call update-version
 call npm run build
-
+if errorlevel 1 (    
+    echo ***************************************
+    echo *********** ERROR EN BUILD ************
+    echo ***************************************
+    exit /b %errorlevel%
+)
 kubectl config use-context k3d-oberkorn
 kubectl delete -f test\sample.yaml
 kubectl delete deployment obk-authorizator-ja-jfvilas-deply -n dev

@@ -9,8 +9,8 @@ import { Invalidation } from '../model/Invalidation';
 import { v4 as uuidv4} from 'uuid';
 
 export class BasicDecoder implements ITokenDecoder{
-  name!:string;
-  type!:string;
+  name:string;
+  type:string;
   jwksUri!:string;
   cachedSigningKeys:Map<string,string> = new Map();
   iss!:string;
