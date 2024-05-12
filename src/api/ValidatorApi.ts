@@ -19,7 +19,7 @@ export class ValidatorApi {
     this.route.route('/:vname/stats')
       .get( (req, res) => {
         var a = this.vals.get(req.params.vname)?.decoderInstance;
-        res.status(200).json( { totalRequests:a?.totalRequests, totalOkRequest:a?.totalOkRequests, totalMicros:a?.totalMicros } );
+        res.status(200).json( { totalRequests:a?.totalRequests, totalOkRequests:a?.totalOkRequests, totalMicros:a?.totalMicros } );
       })
 
   }
