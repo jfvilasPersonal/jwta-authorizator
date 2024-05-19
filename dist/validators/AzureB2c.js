@@ -14,7 +14,6 @@ class AzureB2c extends BasicDecoder_1.BasicDecoder {
         axios_1.default.get(openIdUrl).then(async (response) => {
             this.jwksUri = response.data.jwks_uri;
             console.log(`Creating AzureB2c validator ${this.name} with jwks: ${this.jwksUri}`);
-            //+++ retries
             await this.cacheKeys();
         })
             .catch((err) => {
