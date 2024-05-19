@@ -1,7 +1,4 @@
 import { ITokenDecoder } from "../validators/ITokenDecoder"
-import { Invalidation } from "./Invalidation"
-// import { Filter } from "./Filter"
-// import { RequestContext } from "./RequestContext"
 
 export type Validator = {
     // general properties

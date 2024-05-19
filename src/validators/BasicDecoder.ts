@@ -48,13 +48,11 @@ export class BasicDecoder implements ITokenDecoder{
     if (this.invalidation.enabled) {
       if (this.invalidation.sub.length>0 && this.invalidation.sub.indexOf(decoded.sub))
         return true;
-      // +++
-      // claim invalidation shouñd take place according to an operator: conatin a vlue, be present, etc...
-      // else if (this.invalidation.claim.length>0 && this.invalidation.claim.indexOf(decoded.sub))
-      //   return true;
-      else if (this.invalidation.iss.length>0 && this.invalidation.iss.indexOf(decoded.iss))
+        // +++
+        // claim invalidation should take place according to an operator: contain a value, be present, etc...
+      else if (this.invalidation.iss.length>0 && this.invalidation.iss.indexOf(decoded.iss)>=0)
         return true;
-      else if (this.invalidation.aud.length>0 && this.invalidation.aud.indexOf(decoded.aud))
+      else if (this.invalidation.aud.length>0 && this.invalidation.aud.indexOf(decoded.aud)>=0)
         return true;
     }
     return false;
