@@ -61,9 +61,10 @@ Follow these simple steps to have your Oberkorn authorizator created and deploye
 ```
 
   2. Apply the YAML
-    ```bash
-    kubectl apply -f your-application-authorizator.yaml`
-    ```
+
+      ```bash
+      kubectl apply -f your-application-authorizator.yaml`
+      ```
        
 **That's it!**
 
